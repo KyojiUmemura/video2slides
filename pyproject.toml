@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "video2slides"
+version = "0.1.0"
+description = "Extract slides from recorded video and generate a PDF"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python>=4.8",
+    "imagehash>=4.3",
+    "Pillow>=10.0",
+    "tqdm>=4.65",
+    "img2pdf>=0.5",
+]
+
+[project.scripts]
+video2slides = "video2slides.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
