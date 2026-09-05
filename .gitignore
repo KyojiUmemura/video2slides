@@ -1,6 +1,7 @@
 *.mp4
 *.pdf
 *~
-#*
+*#
 tests
 output
+*.pyc
