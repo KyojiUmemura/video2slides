@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 
 from PIL import Image
 
@@ -28,14 +29,13 @@ class SlideCandidate:
 @dataclass
 class DetectionResult:
     """検出結果"""
-    candidates: list[SlideCandidate] = field(default_factory=list)
     accepted: list[SlideCandidate] = field(default_factory=list)
     duplicates_rejected: int = 0
     total_candidates: int = 0
 
 
 def detect_slides(
-    frames: list[tuple[float, Image.Image]],
+    frames: Iterable[tuple[float, Image.Image]],
     similarity_threshold: float = 0.02,
     pixel_threshold: float = 0.1,
     settle_time: float = 0.7,
@@ -52,7 +52,7 @@ def detect_slides(
       4. 前のスライドと同一の場合、dedup_mode に応じて除外
 
     Args:
-        frames: [(timestamp, PIL.Image), ...] 時系列順の候補フレーム
+        frames: 時系列順の (timestamp, PIL.Image) イテラブル
         similarity_threshold: pHash distance 閾値 (0.0〜1.0、デフォルト: 0.02)
         pixel_threshold: ピクセル差分閾値 (0.0〜1.0、デフォルト: 0.1)
         settle_time: スライド切替検出後の安定待ち時間（秒、デフォルト: 0.7）
@@ -64,10 +64,6 @@ def detect_slides(
         DetectionResult
     """
     result = DetectionResult()
-    result.total_candidates = len(frames)
-
-    if not frames:
-        return result
 
     # 状態管理
     prev_image: Image.Image | None = None
@@ -75,15 +71,14 @@ def detect_slides(
     settling: bool = False      # 安定待ち中
     last_saved_image: Image.Image | None = None  # 最後に保存したスライド
     consecutive_same: int = 0  # 連続 SAME 数
+    total_candidates = 0
 
     for timestamp, img in frames:
+        total_candidates += 1
         if prev_image is None:
             prev_image = img
             if verbose:
                 print(f"{_fmt_ts(timestamp)} INIT -> SAVE")
-            result.candidates.append(SlideCandidate(
-                timestamp=timestamp, image=img, status="SAVE"
-            ))
             result.accepted.append(SlideCandidate(
                 timestamp=timestamp, image=img, status="SAVE"
             ))
@@ -123,9 +118,6 @@ def detect_slides(
                             result.duplicates_rejected += 1
                             if verbose:
                                 print(f"{_fmt_ts(timestamp)} difference={max_diff:.3f} SAME (dedup)")
-                            result.candidates.append(SlideCandidate(
-                                timestamp=timestamp, image=img, status=status
-                            ))
                             prev_image = img
                             continue
                     # 安定 → 保存
@@ -137,10 +129,6 @@ def detect_slides(
 
         if verbose:
             print(f"{_fmt_ts(timestamp)} difference={max_diff:.3f} {status}")
-
-        result.candidates.append(SlideCandidate(
-            timestamp=timestamp, image=img, status=status
-        ))
 
         if status == "STABLE":
             # 重複チェック
@@ -164,6 +152,7 @@ def detect_slides(
 
         prev_image = img
 
+    result.total_candidates = total_candidates
     return result
 
 

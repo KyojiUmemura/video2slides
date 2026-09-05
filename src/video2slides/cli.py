@@ -187,14 +187,15 @@ def main(argv: list[str] | None = None) -> int:
 
     # フレーム抽出
     print("Extracting frames...")
-    frames, detection_stats = extract_frames(
+    frames_gen, detection_stats = extract_frames(
         args.input,
         interval=args.sample_interval,
         crop=crop,
         background_color_detection=(args.background_color_detection == "on"),
         verbose=args.verbose,
     )
-    print(f"Extracted {len(frames)} candidate frames")
+    # generator を detect_slides に直接渡す（統計は detect_slides 内で更新）
+    frames_iter = frames_gen
 
     # 検出統計の表示
     if args.background_color_detection == "on" and detection_stats["total"] > 0:
@@ -227,15 +228,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"    Std dev: {statistics.stdev(rejected_ratios):.4f}")
     print()
 
-    # スライド検出
+    # スライド検出（generator を消費して統計も更新される）
     debug_dir = Path("debug") if args.debug else None
     print("Detecting slides...")
 
-    from tqdm import tqdm
-
-    accepted: list[tuple[float, object]] = []
     result = detect_slides(
-        frames=frames,
+        frames=frames_iter,
         similarity_threshold=args.similarity_threshold,
         settle_time=args.settle_time,
         dedup_mode=args.dedup_mode,
@@ -245,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # 進捗表示
     print()
+    print(f"Extracted {detection_stats['total']} candidate frames")
     print(f"Candidates detected: {result.total_candidates}")
     print(f"Slides accepted: {len(result.accepted)}")
     print(f"Duplicates rejected: {result.duplicates_rejected}")

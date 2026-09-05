@@ -118,11 +118,14 @@ def extract_frames(
     crop: tuple[int, int, int, int] | None = None,
     background_color_detection: bool = False,
     verbose: bool = False,
-) -> tuple[list[tuple[float, Image.Image]], dict]:
-    """動画から一定間隔でフレームを抽出する。
+) -> tuple[Generator[tuple[float, Image.Image], None, None], dict]:
+    """動画から一定間隔でフレームをストリーミング抽出する。
 
-    戻り値: ([(timestamp_sec, PIL.Image), ...], 検出統計) のタプル
+    戻り値: (generator, 検出統計) のタプル
     検出統計: {"total": int, "detected": int, "rejected": int, "ratios": [float]}
+
+    注意: generator は一度だけ消費される。統計情報 (stats) は generator を
+    完全にイテレートした後に正確になる。
     """
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -131,7 +134,6 @@ def extract_frames(
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     frame_interval = max(1, int(fps * interval))
 
-    frames: list[tuple[float, Image.Image]] = []
     frame_idx = 0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -143,54 +145,68 @@ def extract_frames(
     desc = f"Extracting frames from {video_path.name}"
     pbar = tqdm(total=total_frames, desc=desc, unit="frame", position=0, leave=True)
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+    def frame_generator():
+        nonlocal frame_idx, detected_count, rejected_count
 
-        if frame_idx % frame_interval == 0:
-            timestamp = frame_idx / fps
-            # BGR -> RGB 変換
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(rgb)
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-            # 切り抜き
-            if crop is not None:
-                x, y, w, h = crop
-                img = img.crop((x, y, x + w, y + h))
+            if frame_idx % frame_interval == 0:
+                timestamp = frame_idx / fps
+                # BGR -> RGB 変換
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(rgb)
 
-            # スライド主体判定
-            if background_color_detection:
-                ratio = _calc_slide_dominance_ratio(img)
-                # 検出比率を記録（実際の比率値）
-                detection_ratios.append(ratio)
-                if ratio < 0.20:  # 20% 未満は非スライド主体
-                    if verbose:
-                        print(f"  SKIP (ratio={ratio:.3f} < 0.20): {timestamp:.1f}s")
-                    rejected_count += 1
-                    frame_idx += 1
-                    pbar.update(1)
-                    continue
-                detected_count += 1
-            else:
-                detected_count += 1
+                # 切り抜き
+                if crop is not None:
+                    x, y, w, h = crop
+                    img = img.crop((x, y, x + w, y + h))
 
-            frames.append((timestamp, img))
+                # スライド主体判定
+                if background_color_detection:
+                    ratio = _calc_slide_dominance_ratio(img)
+                    # 検出比率を記録（実際の比率値）
+                    detection_ratios.append(ratio)
+                    if ratio < 0.20:  # 20% 未満は非スライド主体
+                        if verbose:
+                            print(f"  SKIP (ratio={ratio:.3f} < 0.20): {timestamp:.1f}s")
+                        rejected_count += 1
+                        frame_idx += 1
+                        pbar.update(1)
+                        continue
+                    detected_count += 1
+                else:
+                    detected_count += 1
 
-        frame_idx += 1
-        pbar.update(1)
+                yield (timestamp, img)
 
-    cap.release()
-    pbar.close()
+            frame_idx += 1
+            pbar.update(1)
 
-    # 検出統計を返す
+    # 統計情報を格納する辞書
     stats = {
-        "total": len(detection_ratios),
-        "detected": detected_count,
-        "rejected": rejected_count,
-        "ratios": detection_ratios,
+        "total": 0,
+        "detected": 0,
+        "rejected": 0,
+        "ratios": [],
     }
-    return frames, stats
+
+    def wrapped_generator():
+        nonlocal detected_count, rejected_count
+        try:
+            yield from frame_generator()
+        finally:
+            # イテレート終了時に統計を更新
+            stats["total"] = len(detection_ratios)
+            stats["detected"] = detected_count
+            stats["rejected"] = rejected_count
+            stats["ratios"] = detection_ratios.copy()
+            cap.release()
+            pbar.close()
+
+    return wrapped_generator(), stats
 
 
 def save_image(img: Image.Image, path: Path, fmt: str = "jpg", quality: int = 95) -> None:
