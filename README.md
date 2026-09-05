@@ -82,6 +82,7 @@ python video2slides.py INPUT [OPTIONS]
    --crop x,y,width,height          画像の切り抜き
    --background-color-detection on|off  スライド主体フレームの検出（デフォルト: off）
    --dedup-mode keep|remove         重複スライドの扱い（デフォルト: keep）
+   --clean on|off                   スライドPDFの背景除去（デフォルト: off）
    --keep-images                    中間画像を保存
    --image-format jpg|png           画像形式（デフォルト: jpg）
    --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
@@ -117,6 +118,10 @@ python video2slides.py short.mp4 \
 # スライド主体フレームのみ抽出
 python video2slides.py lecture.mp4 \
     --background-color-detection on
+
+# 背景除去付き
+python video2slides.py lecture.mp4 \
+    --clean on
 ```
 
 ## スライド検出の考え方
@@ -137,6 +142,8 @@ python video2slides.py lecture.mp4 \
 スライド画像
  ↓
 PDF 生成
+ ↓
+背景除去（`--clean on`）
 ```
 
 1. **フレーム抽出**: FFmpeg で動画から一定間隔でフレームを取得
@@ -159,6 +166,7 @@ PDF 生成
 | `--settle-time` | `0.7` | 標準的なフェード切替 |
 | `--similarity-threshold` | `0.0005` | 標準的な閾値（デフォルト） |
 | `--background-color-detection` | `off` | スライド主体判定（デフォルト） |
+| `--clean` | `off` | 背景除去（デフォルト） |
 
 ### パラメータの調整目安
 

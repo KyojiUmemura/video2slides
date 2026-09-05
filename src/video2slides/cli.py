@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .clean_pdf import clean_pdf
 from .detector import detect_slides
 from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video, save_image
@@ -65,6 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["keep", "remove"],
         default="keep",
         help="重複スライドの扱い: keep=残す, remove=全重複除去 (デフォルト: keep)",
+    )
+    parser.add_argument(
+        "--clean",
+        choices=["on", "off"],
+        default="off",
+        help="スライドPDFの背景除去 (デフォルト: off)",
     )
     parser.add_argument(
         "--keep-images",
@@ -270,6 +277,24 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nGenerating PDF: {output_path}")
     slides_for_pdf = [(c.timestamp, c.image) for c in result.accepted]
     generate_pdf(slides_for_pdf, output_path)
+
+    # 背景除去
+    # 背景除去
+    if args.clean == "on":
+        # Avoid double _cleaned suffix
+        stem = output_path.stem
+        if stem.endswith("_cleaned"):
+            cleaned_name = f"{stem}.pdf"
+        else:
+            cleaned_name = f"{stem}_cleaned.pdf"
+        cleaned_path = output_path.parent / cleaned_name
+        print(f"\nCleaning background: {cleaned_path}")
+        try:
+            clean_pdf(output_path, cleaned_path)
+            output_path = cleaned_path
+        except Exception as e:
+            print(f"エラー：背景除去に失敗しました：{e}", file=sys.stderr)
+            return 1
 
     print(f"Done! {len(result.accepted)} slides -> {output_path}")
     return 0
