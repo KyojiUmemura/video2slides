@@ -169,18 +169,24 @@ on
 
 という処理を行う。
 
-例えばデフォルトでは変更検出後、
+デフォルトでは変更検出後、
 
 ```text
-1.0秒
+0.7秒
 ```
 
-程度経過した安定フレームを採用する方法を検討する。
+程度経過した安定フレームを採用する。
 
 この値も調整可能にする。
 
 ```bash
 --settle-time 3.0
+```
+
+デフォルト値：
+
+```text
+0.7秒
 ```
 
 ---
@@ -227,6 +233,13 @@ JPEGを使用する場合は高品質設定にする。
 ```bash
 --image-format jpg
 --jpeg-quality 90
+```
+
+デフォルト値：
+
+```text
+image-format: jpg
+jpeg-quality: 95
 ```
 
 ---
@@ -353,10 +366,12 @@ img2pdf
 video2slides/
 ├── README.md
 ├── pyproject.toml
+├── requirements.txt
 ├── video2slides.py
 ├── src/
 │   └── video2slides/
 │       ├── __init__.py
+│       ├── cli.py
 │       ├── video.py
 │       ├── detector.py
 │       ├── similarity.py

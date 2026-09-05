@@ -46,13 +46,14 @@ def pixel_difference(
 def are_similar(
     img_a: Image.Image,
     img_b: Image.Image,
-    threshold: float = 0.02,
+    threshold: float = 0.0005,
     hash_size: int = 16,
 ) -> bool:
     """threshold 以下なら「同じスライド」と判定する。
 
     threshold は pHash distance (0.0〜1.0) で指定する。
-    0.02 は約 5/256 ビットが異なる場合に TRUE を返す。
+    デフォルト 0.0005 は 256bit pHash の約 32bit 差に相当し、
+    同一スライドのわずかな変化のみを「同じ」と扱う。
     実測では、同一スライドのフレーム間: <0.001、
     異なるスライド: 0.001〜0.02 の範囲になる。
     """
@@ -63,7 +64,7 @@ def is_slide_change(
     img_a: Image.Image,
     img_b: Image.Image,
     pixel_threshold: float = 0.1,
-    phash_threshold: float = 0.02,
+    phash_threshold: float = 0.0005,
 ) -> tuple[bool, float]:
     """スライド切替かどうかを判定する。
 

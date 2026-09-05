@@ -37,6 +37,27 @@ python video2slides.py input.mp4
 
 `input_slides.pdf` が生成されます。
 
+実行中は次のように進捗が表示されます。
+
+```text
+Analyzing video: input.mp4
+Duration: 01:52:34
+Resolution: 1920x1080 @ 30.0 fps
+
+Extracting frames...
+Extracting frames from input.mp4: 100%|██████████| 1234/1234 [00:42<00:00, 29.3frame/s]
+
+Detecting slides...
+
+Extracted 123 candidate frames
+Candidates detected: 83
+Slides accepted: 57
+Duplicates rejected: 26
+
+Generating PDF: input_slides.pdf
+Done! 57 slides -> input_slides.pdf
+```
+
 ### 出力ディレクトリに画像も保存する場合
 
 ```bash
@@ -143,8 +164,8 @@ PDF 生成
 
 - **スライドが見落とされる** → `--sample-interval` を小さく（例: `0.2`）
 - **切替途中の画像が残る** → `--settle-time` を大きく（例: `1.0`）
-- **ノイズで偽検出が多い** → `--similarity-threshold` を小さく（例: `0.01`）
-- **本来違うスライドが同一と判定される** → `--similarity-threshold` を大きく（例: `0.05`）
+- **ノイズで偽検出が多い** → `--similarity-threshold` を大きく（例: `0.01`）
+- **本来違うスライドが同一と判定される** → `--similarity-threshold` を小さく（例: `0.0002`）
 
 ## トラブルシューティング
 

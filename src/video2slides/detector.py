@@ -36,7 +36,7 @@ class DetectionResult:
 
 def detect_slides(
     frames: Iterable[tuple[float, Image.Image]],
-    similarity_threshold: float = 0.02,
+    similarity_threshold: float = 0.0005,
     pixel_threshold: float = 0.1,
     settle_time: float = 0.7,
     dedup_mode: str = "keep",  # "keep" or "remove"
@@ -53,7 +53,7 @@ def detect_slides(
 
     Args:
         frames: 時系列順の (timestamp, PIL.Image) イテラブル
-        similarity_threshold: pHash distance 閾値 (0.0〜1.0、デフォルト: 0.02)
+        similarity_threshold: pHash distance 閾値 (0.0〜1.0、デフォルト: 0.0005)
         pixel_threshold: ピクセル差分閾値 (0.0〜1.0、デフォルト: 0.1)
         settle_time: スライド切替検出後の安定待ち時間（秒、デフォルト: 0.7）
         dedup_mode: "keep"=離れて再登場も残す, "remove"=全重複を除去
