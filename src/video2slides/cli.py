@@ -33,8 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sample-interval",
         type=float,
-        default=5.0,
-        help="フレーム抽出間隔（秒、デフォルト: 5）",
+        default=10.0,
+        help="フレーム抽出間隔（秒、デフォルト: 10）",
     )
     parser.add_argument(
         "--settle-time",
@@ -45,8 +45,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--similarity-threshold",
         type=float,
-        default=0.02,
-        help="類似度閾値 pHash distance (0.0〜1.0、デフォルト: 0.02)",
+        default=0.0005,
+        help="類似度閾値 pHash distance (0.0〜1.0、デフォルト: 0.0005)",
     )
     parser.add_argument(
         "--crop",
@@ -57,8 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--background-color-detection",
         choices=["on", "off"],
-        default="off",
-        help="スライド主体フレームの検出 (デフォルト: off)",
+        default="on",
+        help="スライド主体フレームの検出 (デフォルト: on)",
     )
     parser.add_argument(
         "--dedup-mode",
