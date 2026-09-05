@@ -45,11 +45,17 @@ def detect_slides(
 ) -> DetectionResult:
     """スライド切替を検出し、安定した代表フレームを抽出する。
 
+    処理フロー:
+      1. 連続フレームを比較し、十分に異なる場合は「CHANGE」と判定
+      2. 切替検出後、settle_time 秒経過するまで待機
+      3. 安定した時点で代表フレームとして保存
+      4. 前のスライドと同一の場合、dedup_mode に応じて除外
+
     Args:
         frames: [(timestamp, PIL.Image), ...] 時系列順の候補フレーム
-        similarity_threshold: pHash distance 閾値 (0.0〜1.0)
-        pixel_threshold: ピクセル差分閾値 (0.0〜1.0)
-        settle_time: スライド切替検出後の安定待ち時間（秒）
+        similarity_threshold: pHash distance 閾値 (0.0〜1.0、デフォルト: 0.02)
+        pixel_threshold: ピクセル差分閾値 (0.0〜1.0、デフォルト: 0.1)
+        settle_time: スライド切替検出後の安定待ち時間（秒、デフォルト: 0.7）
         dedup_mode: "keep"=離れて再登場も残す, "remove"=全重複を除去
         verbose: デバッグ情報を出力
         debug_dir: debug/ 画像を保存するディレクトリ（None で保存しない）

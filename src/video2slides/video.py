@@ -6,14 +6,17 @@ FFmpeg / ffprobe を subprocess で呼び出し、
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
-import tempfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
+import numpy as np
 from PIL import Image
+from tqdm import tqdm
 
 
 @dataclass
@@ -45,7 +48,6 @@ def probe_video(path: Path) -> VideoInfo:
         str(path),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    import json
     info = json.loads(result.stdout)
 
     # 動画ストリームを取得
@@ -80,13 +82,47 @@ def probe_video(path: Path) -> VideoInfo:
     )
 
 
+def _calc_slide_dominance_ratio(img: Image.Image) -> float:
+    """画像のスライド主体比率を計算する。
+
+    約1000ピクセルをランダムにサンプリングし、
+    最も多い色の比率（max_count / n_samples）を返す。
+    0.0〜1.0 の値を返す。
+    """
+    arr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2HSV)
+    h, w = arr.shape[:2]
+    # 約1000ピクセルをランダムにサンプリング
+    n_samples = 1000
+    if h * w > n_samples:
+        indices = np.random.choice(h * w, n_samples, replace=False)
+        y = indices // w
+        x = indices % w
+        arr = arr[y, x]
+    # 色を量子化（H: 16段階, S/V: 8段階）
+    h_quant = (arr[:, 0] // 16) * 16
+    s_quant = (arr[:, 1] // 32) * 32
+    v_quant = (arr[:, 2] // 32) * 32
+    # 量子化された色を結合
+    quantized_colors = (h_quant.astype(np.int32) << 16) | (s_quant.astype(np.int32) << 8) | v_quant.astype(np.int32)
+    # 各色の出現回数をカウント
+    unique_colors, counts = np.unique(quantized_colors, return_counts=True)
+    if counts.size == 0:
+        return 0.0
+    max_count = counts.max()
+    return max_count / n_samples
+
+
 def extract_frames(
     video_path: Path,
     interval: float = 0.5,
-) -> list[tuple[float, Image.Image]]:
+    crop: tuple[int, int, int, int] | None = None,
+    background_color_detection: bool = False,
+    verbose: bool = False,
+) -> tuple[list[tuple[float, Image.Image]], dict]:
     """動画から一定間隔でフレームを抽出する。
 
-    戻り値: [(timestamp_sec, PIL.Image), ...] のリスト
+    戻り値: ([(timestamp_sec, PIL.Image), ...], 検出統計) のタプル
+    検出統計: {"total": int, "detected": int, "rejected": int, "ratios": [float]}
     """
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -97,6 +133,15 @@ def extract_frames(
 
     frames: list[tuple[float, Image.Image]] = []
     frame_idx = 0
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # 検出統計
+    detected_count = 0
+    rejected_count = 0
+    detection_ratios: list[float] = []
+
+    desc = f"Extracting frames from {video_path.name}"
+    pbar = tqdm(total=total_frames, desc=desc, unit="frame", position=0, leave=True)
 
     while True:
         ret, frame = cap.read()
@@ -108,12 +153,44 @@ def extract_frames(
             # BGR -> RGB 変換
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(rgb)
+
+            # 切り抜き
+            if crop is not None:
+                x, y, w, h = crop
+                img = img.crop((x, y, x + w, y + h))
+
+            # スライド主体判定
+            if background_color_detection:
+                ratio = _calc_slide_dominance_ratio(img)
+                # 検出比率を記録（実際の比率値）
+                detection_ratios.append(ratio)
+                if ratio < 0.20:  # 20% 未満は非スライド主体
+                    if verbose:
+                        print(f"  SKIP (ratio={ratio:.3f} < 0.20): {timestamp:.1f}s")
+                    rejected_count += 1
+                    frame_idx += 1
+                    pbar.update(1)
+                    continue
+                detected_count += 1
+            else:
+                detected_count += 1
+
             frames.append((timestamp, img))
 
         frame_idx += 1
+        pbar.update(1)
 
     cap.release()
-    return frames
+    pbar.close()
+
+    # 検出統計を返す
+    stats = {
+        "total": len(detection_ratios),
+        "detected": detected_count,
+        "rejected": rejected_count,
+        "ratios": detection_ratios,
+    }
+    return frames, stats
 
 
 def save_image(img: Image.Image, path: Path, fmt: str = "jpg", quality: int = 95) -> None:

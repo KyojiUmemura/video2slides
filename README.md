@@ -54,18 +54,20 @@ python video2slides.py INPUT [OPTIONS]
    INPUT                 入力動画ファイルパス
 
  options:
-   --output, -o OUTPUT   出力PDFファイルパス（デフォルト: INPUT_slides.pdf）
-   --sample-interval FLOAT        フレーム抽出間隔（秒、デフォルト: 5）
-   --settle-time FLOAT            スライド切替後の安定待ち時間（秒、デフォルト: 0.7）
-   --similarity-threshold FLOAT   類似度閾値 0.0〜1.0（デフォルト: 0.15）
-   --crop x,y,width,height        画像の切り抜き
-   --dedup-mode keep|remove       重複スライドの扱い（デフォルト: keep）
-   --keep-images                  中間画像を保存
-   --image-format jpg|png         画像形式（デフォルト: jpg）
-   --jpeg-quality N               JPEG品質 1〜100（デフォルト: 95）
-   --verbose, -v                  デバッグ情報を出力
-   --debug                        verbose + debug/ に判定候補を保存
-   --version                      バージョン表示
+   --output, -o OUTPUT              出力PDFファイルパス（デフォルト: INPUT_slides.pdf）
+   --sample-interval FLOAT          フレーム抽出間隔（秒、デフォルト: 5）
+   --settle-time FLOAT              スライド切替後の安定待ち時間（秒、デフォルト: 0.7）
+   --similarity-threshold FLOAT     類似度閾値 0.0〜1.0（デフォルト: 0.02）
+   --crop x,y,width,height          画像の切り抜き
+   --background-color-detection on|off  スライド主体フレームの検出（デフォルト: off）
+   --dedup-mode keep|remove         重複スライドの扱い（デフォルト: keep）
+   --keep-images                    中間画像を保存
+   --image-format jpg|png           画像形式（デフォルト: jpg）
+   --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
+   --verbose, -v                    デバッグ情報を出力
+   --debug                          verbose + debug/ に判定候補を保存
+   --overwrite                      既存の出力ファイルを上書き
+   --version                        バージョン表示
 ```
 
 ### 使用例
@@ -90,6 +92,10 @@ python video2slides.py lecture.mp4 \
 python video2slides.py short.mp4 \
     --sample-interval 0.2 \
     --settle-time 0.3
+
+# スライド主体フレームのみ抽出
+python video2slides.py lecture.mp4 \
+    --background-color-detection on
 ```
 
 ## スライド検出の考え方
@@ -118,6 +124,11 @@ PDF 生成
 4. **重複除去**: 連続する同一スライドを除去（オプションで全重複も除去可能）
 5. **PDF 生成**: 画像を時系列順に並べて余白なしの PDF に出力
 
+### スライド主体判定（`--background-color-detection on`）
+
+画像内のほぼ同一色の領域が 20% 以上を占めるフレームのみをスライドとして扱います。
+プレゼン内容以外のフレーム（黒画面、タイトルカード等）を除外できます。
+
 ## 推奨パラメータ
 
 | パラメータ | 推奨値 | 説明 |
@@ -125,14 +136,14 @@ PDF 生成
 | `--sample-interval` | `0.5` | 標準的な講義動画 |
 | `--sample-interval` | `0.2` | 切り替えが速い動画 |
 | `--settle-time` | `0.7` | 標準的なフェード切替 |
-| `--similarity-threshold` | `0.15` | 標準的な閾値 |
+| `--similarity-threshold` | `0.02` | 標準的な閾値 |
 
 ### パラメータの調整目安
 
 - **スライドが見落とされる** → `--sample-interval` を小さく（例: `0.2`）
 - **切替途中の画像が残る** → `--settle-time` を大きく（例: `1.0`）
-- **ノイズで偽検出が多い** → `--similarity-threshold` を小さく（例: `0.10`）
-- **本来違うスライドが同一と判定される** → `--similarity-threshold` を大きく（例: `0.20`）
+- **ノイズで偽検出が多い** → `--similarity-threshold` を小さく（例: `0.01`）
+- **本来違うスライドが同一と判定される** → `--similarity-threshold` を大きく（例: `0.05`）
 
 ## トラブルシューティング
 
