@@ -33,8 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sample-interval",
         type=float,
-        default=10.0,
-        help="フレーム抽出間隔（秒、デフォルト: 10）",
+        default=2.0,
+        help="フレーム抽出間隔（秒、デフォルト: 2）",
     )
     parser.add_argument(
         "--settle-time",
@@ -57,8 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--background-color-detection",
         choices=["on", "off"],
-        default="on",
-        help="スライド主体フレームの検出 (デフォルト: on)",
+        default="off",
+        help="スライド主体フレームの検出 (デフォルト: off)",
     )
     parser.add_argument(
         "--dedup-mode",

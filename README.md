@@ -76,11 +76,11 @@ python video2slides.py INPUT [OPTIONS]
 
  options:
    --output, -o OUTPUT              出力PDFファイルパス（デフォルト: INPUT_slides.pdf）
-   --sample-interval FLOAT          フレーム抽出間隔（秒、デフォルト: 10）
+   --sample-interval FLOAT          フレーム抽出間隔（秒、デフォルト: 2）
    --settle-time FLOAT              スライド切替後の安定待ち時間（秒、デフォルト: 0.7）
    --similarity-threshold FLOAT     類似度閾値 0.0〜1.0（デフォルト: 0.0005）
    --crop x,y,width,height          画像の切り抜き
-   --background-color-detection on|off  スライド主体フレームの検出（デフォルト: on）
+   --background-color-detection on|off  スライド主体フレームの検出（デフォルト: off）
    --dedup-mode keep|remove         重複スライドの扱い（デフォルト: keep）
    --keep-images                    中間画像を保存
    --image-format jpg|png           画像形式（デフォルト: jpg）
@@ -154,11 +154,11 @@ PDF 生成
 
 | パラメータ | 推奨値 | 説明 |
 |---|---|---|
-| `--sample-interval` | `10` | 標準的な講義動画（デフォルト） |
+| `--sample-interval` | `2` | 標準的な講義動画（デフォルト） |
 | `--sample-interval` | `1` | 切り替えが速い動画 |
 | `--settle-time` | `0.7` | 標準的なフェード切替 |
 | `--similarity-threshold` | `0.0005` | 標準的な閾値（デフォルト） |
-| `--background-color-detection` | `on` | スライド主体判定（デフォルト） |
+| `--background-color-detection` | `off` | スライド主体判定（デフォルト） |
 
 ### パラメータの調整目安
 
