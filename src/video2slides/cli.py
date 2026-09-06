@@ -15,7 +15,7 @@ from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video, save_image
 
 
-_VERSION = "2026-09-06"
+_VERSION = "2026-09-07"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -116,6 +116,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=95,
         help="JPEG 品質 (1〜100、デフォルト: 95)",
+    )
+    parser.add_argument(
+        "--background",
+        action="store_true",
+        help="推定した背景マップを {stem}_background.png に保存",
+    )
+    parser.add_argument(
+        "--quick-sample",
+        action="store_true",
+        help="元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存",
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -307,7 +317,6 @@ def main(argv: list[str] | None = None) -> int:
     generate_pdf(slides_for_pdf, output_path, image_format=args.image_format, jpeg_quality=args.jpeg_quality)
 
     # 背景除去
-    # 背景除去
     if args.clean == "on":
         # Avoid double _cleaned suffix
         stem = output_path.stem
@@ -318,11 +327,27 @@ def main(argv: list[str] | None = None) -> int:
         cleaned_path = output_path.parent / cleaned_name
         print(f"\nCleaning background: {cleaned_path}")
         try:
-            clean_pdf(output_path, cleaned_path, bg_pages=args.bg_pages, percentile=args.percentile, intensity=args.intensity, image_format=args.image_format, jpeg_quality=args.jpeg_quality)
-            output_path = cleaned_path
+            clean_pdf(
+                output_path, cleaned_path,
+                bg_pages=args.bg_pages,
+                percentile=args.percentile,
+                intensity=args.intensity,
+                image_format=args.image_format,
+                jpeg_quality=args.jpeg_quality,
+                save_bg_map=args.background,
+                save_sample=args.quick_sample,
+            )
         except Exception as e:
             print(f"エラー：背景除去に失敗しました：{e}", file=sys.stderr)
             return 1
+
+        # Rename: backup original -> {stem}_old.pdf, then move cleaned -> {stem}.pdf
+        if output_path.exists():
+            backup_path = output_path.parent / f"{stem}_original.pdf"
+            output_path.rename(backup_path)
+            print(f"  Original backed up: {backup_path}")
+        cleaned_path.rename(output_path)
+        print(f"  Cleaned PDF saved: {output_path}")
 
     print(f"Done! {len(accepted)} slides -> {output_path}")
     return 0

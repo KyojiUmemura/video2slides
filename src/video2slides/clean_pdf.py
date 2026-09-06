@@ -14,13 +14,16 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from PIL import Image
+import PIL.Image as PILImage
+import PIL.ImageDraw as PILImageDraw
+import PIL.ImageFont as PILImageFont
 
 import fitz  # PyMuPDF
 import numpy as np
+from tqdm import tqdm
 
-from .pdf_io import iter_pdf_pages
-from .analyze_positional import positional_background
+from .pdf_io import get_page_count, iter_pdf_pages
+from .analyze_positional import positional_background, visualize
 from .remove import remove_background
 
 
@@ -34,6 +37,8 @@ def clean_pdf(
     dpi: int = 72,
     image_format: str = "png",
     jpeg_quality: int = 95,
+    save_bg_map: bool = False,
+    save_sample: bool = False,
 ) -> Path:
     """Clean background from a PDF and save the result.
 
@@ -47,6 +52,8 @@ def clean_pdf(
         dpi: Render DPI for page extraction (default 72).
         image_format: Output image format "png" or "jpg" (default "png").
         jpeg_quality: JPEG quality when image_format="jpg" (1-100, default 95).
+        save_bg_map: Save the estimated background map as PNG (default False).
+        save_sample: Save a before/after comparison sheet as PNG (default False).
 
     Returns:
         Path to the cleaned PDF file.
@@ -64,10 +71,13 @@ def clean_pdf(
     # Only bg_pages pages are held in memory at once.
     # ------------------------------------------------------------------
     bg_pages_list = []
-    for _page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
-        bg_pages_list.append(page)
-        if len(bg_pages_list) >= bg_pages:
-            break
+    with tqdm(total=bg_pages, desc="Sampling pages for bg estimation",
+              unit="page", dynamic_ncols=True) as pbar:
+        for _page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
+            bg_pages_list.append(page)
+            pbar.update(1)
+            if len(bg_pages_list) >= bg_pages:
+                break
 
     n_total = len(bg_pages_list)
     print(f"  Sampled {n_total} pages for background estimation")
@@ -78,6 +88,13 @@ def clean_pdf(
     )
     print(f"  bg map: R={bg[..., 0].mean():.0f} G={bg[..., 1].mean():.0f} B={bg[..., 2].mean():.0f}")
 
+    # Save background map if requested
+    if save_bg_map:
+        bg_path = input_pdf.parent / f"{input_pdf.stem}_background.png"
+        bg_u8 = np.clip(bg, 0, 255).astype(np.uint8)
+        PILImage.fromarray(bg_u8).save(str(bg_path))
+        print(f"  Background map saved: {bg_path}")
+
     # ------------------------------------------------------------------
     # Phase 2: Stream each page — remove background and write immediately.
     # Only one page is in memory at a time (plus the bg map).
@@ -85,33 +102,99 @@ def clean_pdf(
     print(f"  Removing background ({model}, intensity={intensity}) and writing...")
     doc = fitz.open()
 
-    for page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
-        # Remove background for this single page
-        cleaned = remove_background([page], bg, model=model, intensity=intensity)[0]
+    total_pages = get_page_count(input_pdf)
+    with tqdm(total=total_pages, desc="Removing background",
+              unit="page", dynamic_ncols=True) as pbar:
+        for page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
+            # Remove background for this single page
+            cleaned = remove_background([page], bg, model=model, intensity=intensity)[0]
 
-        # Create output page sized to the cleaned image dimensions
-        h, w, _ = cleaned.shape
-        out_page = doc.new_page(width=w, height=h)
+            # Create output page sized to the cleaned image dimensions
+            h, w, _ = cleaned.shape
+            out_page = doc.new_page(width=w, height=h)
 
-        # Embed the cleaned page image
-        pil_img = Image.fromarray(cleaned)
-        buf = io.BytesIO()
-        if image_format == "jpg":
-            pil_img.save(buf, format="JPEG", quality=jpeg_quality, optimize=True)
-        else:
-            pil_img.save(buf, format="PNG")
-        buf.seek(0)
-        out_page.insert_image(
-            fitz.Rect(0, 0, w, h),
-            stream=buf.read(),
-        )
+            # Embed the cleaned page image
+            pil_img = PILImage.fromarray(cleaned)
+            buf = io.BytesIO()
+            if image_format == "jpg":
+                pil_img.save(buf, format="JPEG", quality=jpeg_quality, optimize=True)
+            else:
+                pil_img.save(buf, format="PNG")
+            buf.seek(0)
+            out_page.insert_image(
+                fitz.Rect(0, 0, w, h),
+                stream=buf.read(),
+            )
 
-        # Progress: print every 50 pages
-        if (page_idx + 1) % 50 == 0 or page_idx == 0:
-            print(f"    processed {page_idx + 1} pages...")
+            pbar.update(1)
 
     pdf_bytes = doc.tobytes()
     doc.close()
+
+    # Save sample comparison if requested
+    if save_sample:
+        sample_path = input_pdf.parent / f"{input_pdf.stem}_sample.png"
+        # Sample up to 3 pages for comparison
+        sample_pages = []
+        for idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
+            sample_pages.append((idx, page))
+            if len(sample_pages) >= 3:
+                break
+
+        if sample_pages:
+            # Generate comparison sheet
+            pass  # Imports are at the top of the file
+
+            # Create a strip with all sampled pages
+            panels = []
+            labels = []
+            for idx, page in sample_pages:
+                # Compute whitened version
+                whitened = remove_background([page], bg, model=model, intensity=intensity)[0]
+                # Generate mask from confidence
+                mask = (conf < 0.5).astype(np.uint8)
+                # Generate comparison panel
+                panel = PILImage.new("RGB", (page.shape[1] * 4 + 30, page.shape[0] + 30), "white")
+                draw = PILImageDraw.Draw(panel)
+                # Original
+                orig_img = PILImage.fromarray(page)
+                panel.paste(orig_img, (0, 0))
+                draw.text((page.shape[1] // 2, page.shape[0] + 15), "Original",
+                         fill="black", anchor="mm")
+                # Background map
+                bg_u8 = np.clip(bg, 0, 255).astype(np.uint8)
+                bg_img = PILImage.fromarray(bg_u8)
+                panel.paste(bg_img, (page.shape[1] + 10, 0))
+                draw.text((page.shape[1] * 3 // 2 + 5, page.shape[0] + 15), "Background",
+                         fill="black", anchor="mm")
+                # Whitened
+                whitened_img = PILImage.fromarray(whitened)
+                panel.paste(whitened_img, (page.shape[1] * 2 + 20, 0))
+                draw.text((page.shape[1] * 5 // 2 + 10, page.shape[0] + 15), "Cleaned",
+                         fill="black", anchor="mm")
+                # Mask
+                mask_img = np.where(mask, 255, 0).astype(np.uint8)
+                mask_img = np.stack([mask_img] * 3, -1)
+                mask_pil = PILImage.fromarray(mask_img)
+                panel.paste(mask_pil, (page.shape[1] * 3 + 30, 0))
+                draw.text((page.shape[1] * 7 // 2 + 15, page.shape[0] + 15), "Mask",
+                         fill="black", anchor="mm")
+
+                panels.append(panel)
+                labels.append(f"Page {idx + 1}")
+
+            # Combine all panels horizontally
+            if panels:
+                total_width = sum(p.width for p in panels) + 20 * (len(panels) - 1)
+                max_height = max(p.height for p in panels)
+                strip = PILImage.new("RGB", (total_width, max_height), "white")
+                x_offset = 0
+                for i, panel in enumerate(panels):
+                    strip.paste(panel, (x_offset, 0))
+                    x_offset += panel.width + 20
+
+                strip.save(str(sample_path))
+                print(f"  Sample saved: {sample_path}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(pdf_bytes)

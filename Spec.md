@@ -84,7 +84,7 @@ FFmpegを使用して動画を読み込む。
 デフォルト値：
 
 ```text
-10秒
+2秒
 ```
 
 さらに，スライド主体のフレームだけを選ぶ。
@@ -103,7 +103,7 @@ FFmpegを使用して動画を読み込む。
 デフォルト値：
 
 ```text
-on
+off
 ```
 
 
@@ -305,13 +305,14 @@ PDF の全ページから等間隔に最大 60 ページをサンプリングし
 
 `--clean on` 指定時、以下のファイルが生成される：
 
-| ファイル | 説明 |
-|---------|------|
-| `<stem>_cleaned.pdf` | 背景除去後の PDF |
-| `output/before_after.png` | 元画像・背景マップ・除去後の比較シート |
-| `output/bg_map_used.png` | 推定に使用した背景マップ |
+| ファイル | 説明 | 条件 |
+|---------|------|------|
+| `<stem>.pdf` | 背景除去後の PDF（最終結果） | 常時生成 |
+| `<stem>_original.pdf` | 除去前の PDF（バックアップ） | `--clean on` 時、`<stem>.pdf` が既存の場合 |
+| `<stem>_background.png` | 推定した背景マップ | `--background` 指定時 |
+| `<stem>_sample.png` | 元画像・背景マップ・除去後の比較シート | `--quick-sample` 指定時 |
 
-`<stem>` は入力ファイル名から拡張子を除いた部分。出力ファイル名が `_cleaned` で終わる場合、二重 suffix を避けて上書きされる。
+`<stem>` は入力ファイル名から拡張子を除いた部分。`<stem>.pdf` が既に存在する場合、背景除去前に `<stem>_original.pdf` へバックアップし、除去後の PDF を `<stem>.pdf` として上書きする。
 
 ## PDF 圧縮
 
@@ -352,6 +353,8 @@ python video2slides.py INPUT
 --keep-images
 --image-format jpg|png
 --jpeg-quality INT
+--background                     推定した背景マップを {stem}_background.png に保存
+--quick-sample                   元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存
 --verbose
 --debug
 --overwrite

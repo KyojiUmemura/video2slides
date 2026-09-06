@@ -131,6 +131,8 @@ python video2slides.py INPUT [OPTIONS]
    --keep-images                    中間画像を保存
    --image-format jpg|png           画像形式（デフォルト: jpg）
    --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
+   --background                     推定した背景マップを {stem}_background.png に保存
+   --quick-sample                   元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存
    --verbose, -v                    デバッグ情報を出力
    --debug                          verbose + debug/ に判定候補を保存
    --overwrite                      既存の出力ファイルを上書き
@@ -251,13 +253,14 @@ PDF の全ページから等間隔に最大 60 ページをサンプリングし
 
 `--clean on` 指定時、以下のファイルが生成されます：
 
-| ファイル | 説明 |
-|---------|------|
-| `<stem>_cleaned.pdf` | 背景除去後の PDF |
-| `output/before_after.png` | 元画像・背景マップ・除去後の比較シート |
-| `output/bg_map_used.png` | 推定に使用した背景マップ |
+| ファイル | 説明 | 条件 |
+|---------|------|------|
+| `<stem>.pdf` | 背景除去後の PDF（最終結果） | 常時生成 |
+| `<stem>_original.pdf` | 除去前の PDF（バックアップ） | `--clean on` 時、`<stem>.pdf` が既存の場合 |
+| `<stem>_background.png` | 推定した背景マップ | `--background` 指定時 |
+| `<stem>_sample.png` | 元画像・背景マップ・除去後の比較シート | `--quick-sample` 指定時 |
 
-`<stem>` は入力ファイル名から拡張子を除いた部分です。出力ファイル名が `_cleaned` で終わる場合、二重 suffix を避けて上書きされます。
+`<stem>` は入力ファイル名から拡張子を除いた部分です。`<stem>.pdf` が既に存在する場合、背景除去前に `<stem>_original.pdf` へバックアップし、除去後の PDF を `<stem>.pdf` として上書きします。
 
 ### 推奨パラメータ
 

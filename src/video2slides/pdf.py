@@ -14,6 +14,7 @@ from typing import Iterator
 from PIL import Image
 
 import img2pdf
+from tqdm import tqdm
 
 
 def generate_pdf(
@@ -45,19 +46,21 @@ def generate_pdf(
         paths: list[Path] = []
 
         ext = "jpg" if image_format == "jpg" else "png"
-        for i, (_, src) in enumerate(slides):
-            p = tmp / f"slide_{i:04d}.{ext}"
-            if isinstance(src, Path):
-                # ファイルパスから直接コピー
-                import shutil
-                shutil.copy2(str(src), str(p))
-            else:
-                # PIL Image を保存
-                if image_format == "jpg":
-                    src.save(str(p), "JPEG", quality=jpeg_quality, optimize=True)
+        with tqdm(desc="Generating PDF", unit="slide", dynamic_ncols=True) as pbar:
+            for i, (_, src) in enumerate(slides):
+                p = tmp / f"slide_{i:04d}.{ext}"
+                if isinstance(src, Path):
+                    # ファイルパスから直接コピー
+                    import shutil
+                    shutil.copy2(str(src), str(p))
                 else:
-                    src.save(str(p), "PNG")
-            paths.append(p)
+                    # PIL Image を保存
+                    if image_format == "jpg":
+                        src.save(str(p), "JPEG", quality=jpeg_quality, optimize=True)
+                    else:
+                        src.save(str(p), "PNG")
+                paths.append(p)
+                pbar.update(1)
 
         # img2pdf で PDF 生成（全パスを一度に渡すのはディスク上のファイルのみ）
         with open(output_path, "wb") as f:
