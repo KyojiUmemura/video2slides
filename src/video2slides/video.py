@@ -142,7 +142,7 @@ def extract_frames(
     rejected_count = 0
     detection_ratios: list[float] = []
 
-    desc = f"Extracting frames from {video_path.name}"
+    desc = "Extracting frames"
     pbar = tqdm(total=total_frames, desc=desc, unit="frame", position=0, leave=True)
 
     def frame_generator():
@@ -207,12 +207,3 @@ def extract_frames(
             pbar.close()
 
     return wrapped_generator(), stats
-
-
-def save_image(img: Image.Image, path: Path, fmt: str = "jpg", quality: int = 95) -> None:
-    """画像をファイルに保存する。"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if fmt == "png":
-        img.save(str(path), "PNG")
-    else:
-        img.save(str(path), "JPEG", quality=quality, optimize=True)

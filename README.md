@@ -99,14 +99,6 @@ Generating PDF: input.pdf
 Done! 57 slides -> input.pdf
 ```
 
-### 出力ディレクトリに画像も保存する場合
-
-```bash
-python video2slides.py input.mp4 --keep-images
-```
-
-`output/` ディレクトリに `slide_0001.jpg` などの画像が保存されます。
-
 ## CLI オプション
 
 ```
@@ -128,7 +120,6 @@ python video2slides.py INPUT [OPTIONS]
    --percentile FLOAT               背景推定のパーセンタイル（デフォルト: 90.0）
    --intensity FLOAT                背景除去強度 0.0-1.0（デフォルト: 1.0）
    --dpi INT                        変換DPI（デフォルト: 72）
-   --keep-images                    中間画像を保存
    --image-format jpg|png           画像形式（デフォルト: jpg）
    --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
    --background                     推定した背景マップを {stem}_background.png に保存
@@ -149,13 +140,11 @@ python video2slides.py lecture.mp4
 python video2slides.py lecture.mp4 \
     --output slides.pdf \
     --sample-interval 2 \
-    --settle-time 0.7 \
-    --keep-images
+    --settle-time 0.7
 
 # PNG 形式で保存
 python video2slides.py lecture.mp4 \
-    --image-format png \
-    --keep-images
+    --image-format png
 
 # 短い動画（高速サンプリング）
 python video2slides.py short.mp4 \

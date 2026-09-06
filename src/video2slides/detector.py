@@ -157,12 +157,12 @@ def detect_slides(
     # 統計情報を返すための特殊オブジェクト（イテレータ終了時にアクセス可能）
     # NOTE: isinstance による判別は fragile。将来 SlideCandidate サブクラスが
     # 追加された場合に衝突する可能性があるので、必要なら専用の終了マークに置き換え。
-    yield _DetectionStats(total_candidates, duplicates_rejected)
+    yield DetectionStats(total_candidates, duplicates_rejected)
 
 
 @dataclass
-class _DetectionStats:
-    """内部用: 検出統計情報（Sentinel として末尾に yield される）"""
+class DetectionStats:
+    """検出統計情報（Sentinel として末尾に yield される）"""
     total_candidates: int
     duplicates_rejected: int
 
@@ -180,7 +180,7 @@ def collect_detection_result(
     duplicates_rejected = 0
 
     for item in slides:
-        if isinstance(item, _DetectionStats):
+        if isinstance(item, DetectionStats):
             total_candidates = item.total_candidates
             duplicates_rejected = item.duplicates_rejected
         else:

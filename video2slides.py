@@ -3,7 +3,7 @@
 
 使用方法:
     python video2slides.py input.mp4
-    python video2slides.py input.mp4 --output slides.pdf --keep-images
+    python video2slides.py input.mp4 --output slides.pdf
 
 注意: root に video2slides.py があるため、video2slides パッケージが
 シャドウされる。importlib.util で src/ 上のモジュールを直接ロードする。

@@ -10,9 +10,9 @@ from pathlib import Path
 
 from . import __version__
 from .clean_pdf import clean_pdf
-from .detector import collect_detection_result, detect_slides
+from .detector import detect_slides
 from .pdf import generate_pdf
-from .video import check_ffmpeg, extract_frames, probe_video, save_image
+from .video import check_ffmpeg, extract_frames, probe_video
 
 
 _VERSION = "2026-09-07"
@@ -75,11 +75,6 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["on", "off"],
         default="off",
         help="スライドPDFの背景除去 (デフォルト: off)",
-    )
-    parser.add_argument(
-        "--keep-images",
-        action="store_true",
-        help="中間スライド画像を output/ に保存する",
     )
     parser.add_argument(
         "--bg-pages",
@@ -283,38 +278,24 @@ def main(argv: list[str] | None = None) -> int:
         debug_dir=debug_dir,
     )
 
-    # generator を消費してスライドリストと統計を取得
-    accepted, result = collect_detection_result(slides)
+    # PDF 生成（generator を直接渡す、統計情報も同時に取得）
+    print(f"\nGenerating PDF: {output_path}")
+    total_candidates, duplicates_rejected = generate_pdf(
+        slides, output_path,
+        image_format=args.image_format,
+        jpeg_quality=args.jpeg_quality,
+    )
 
     # 進捗表示
     print()
     print(f"Extracted {detection_stats['total']} candidate frames")
-    print(f"Candidates detected: {result.total_candidates}")
-    print(f"Slides accepted: {len(accepted)}")
-    print(f"Duplicates rejected: {result.duplicates_rejected}")
+    print(f"Candidates detected: {total_candidates}")
+    print(f"Slides accepted: {total_candidates - duplicates_rejected}")
+    print(f"Duplicates rejected: {duplicates_rejected}")
 
-    if not accepted:
+    if total_candidates - duplicates_rejected == 0:
         print("エラー: スライドが検出されませんでした。", file=sys.stderr)
         return 1
-
-    # 画像保存
-    if args.keep_images:
-        output_dir = args.input.parent / "output"
-        output_dir.mkdir(exist_ok=True)
-        print(f"\nSaving slides to {output_dir}/")
-        for i, candidate in enumerate(accepted):
-            ext = "png" if args.image_format == "png" else "jpg"
-            save_image(
-                candidate.image,
-                output_dir / f"slide_{i+1:04d}.{ext}",
-                fmt=args.image_format,
-                quality=args.jpeg_quality,
-            )
-
-    # PDF 生成（generator を直接渡す）
-    print(f"\nGenerating PDF: {output_path}")
-    slides_for_pdf = ((c.timestamp, c.image) for c in accepted)
-    generate_pdf(slides_for_pdf, output_path, image_format=args.image_format, jpeg_quality=args.jpeg_quality)
 
     # 背景除去
     if args.clean == "on":

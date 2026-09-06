@@ -350,7 +350,6 @@ python video2slides.py INPUT
 --percentile FLOAT
 --intensity FLOAT
 --dpi INT
---keep-images
 --image-format jpg|png
 --jpeg-quality INT
 --background                     推定した背景マップを {stem}_background.png に保存
@@ -367,8 +366,7 @@ python video2slides.py INPUT
 python video2slides.py lecture.mp4 \
     --output lecture_slides.pdf \
     --sample-interval 0.5 \
-    --settle-time 0.7 \
-    --keep-images
+    --settle-time 0.7
 ```
 
 ---
