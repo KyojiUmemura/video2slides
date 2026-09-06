@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--output", "-o",
         type=Path,
         default=None,
-        help="出力PDFファイルパス（デフォルト: 入力ファイル名_slides.pdf）",
+        help="出力PDFファイルパス（デフォルト: 入力ファイル名.pdf）",
     )
     parser.add_argument(
         "--sample-interval",
@@ -146,9 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # 出力パス決定
-    output_path = args.output or args.input.with_stem(
-        args.input.stem + "_slides"
-    ).with_suffix(".pdf")
+    output_path = args.output or args.input.with_suffix(".pdf")
 
     # 出力先が既存の場合
     if output_path.exists():

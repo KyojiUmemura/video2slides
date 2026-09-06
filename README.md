@@ -29,13 +29,54 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## インストール（他環境でも利用可能）
+
+このプロジェクトは `pip` でインストール可能です。
+
+### pip install でのインストール
+
+```bash
+# リポジトリから直接インストール
+pip install git+https://github.com/umekichi/SlideVideo.git
+
+# またはローカルからインストール
+cd SlideVideo
+pip install .
+```
+
+インストール後、`video2slides` コマンドが利用可能になります：
+
+```bash
+video2slides lecture.mp4
+```
+
+### pip install --editable（開発者向け）
+
+開発時にソースコードを直接反映したい場合：
+
+```bash
+pip install -e .
+```
+
+### 依存パッケージ
+
+| パッケージ | 用途 |
+|-----------|------|
+| `opencv-python` | 画像処理、フレーム抽出 |
+| `imagehash` | pHash による画像類似度判定 |
+| `Pillow` | 画像処理 |
+| `tqdm` | 進捗表示 |
+| `img2pdf` | PDF 生成 |
+| `PyMuPDF` | PDF 読み込み・書き出し |
+| `numpy` | 数値演算 |
+
 ## 基本的な使い方
 
 ```bash
 python video2slides.py input.mp4
 ```
 
-`input_slides.pdf` が生成されます。
+`input.pdf` が生成されます。
 
 実行中は次のように進捗が表示されます。
 
@@ -54,8 +95,8 @@ Candidates detected: 83
 Slides accepted: 57
 Duplicates rejected: 26
 
-Generating PDF: input_slides.pdf
-Done! 57 slides -> input_slides.pdf
+Generating PDF: input.pdf
+Done! 57 slides -> input.pdf
 ```
 
 ### 出力ディレクトリに画像も保存する場合
@@ -75,7 +116,7 @@ python video2slides.py INPUT [OPTIONS]
    INPUT                 入力動画ファイルパス
 
  options:
-   --output, -o OUTPUT              出力PDFファイルパス（デフォルト: INPUT_slides.pdf）
+   --output, -o OUTPUT              出力PDFファイルパス（デフォルト: INPUT.pdf）
    --sample-interval FLOAT          フレーム抽出間隔（秒、デフォルト: 2）
    --settle-time FLOAT              スライド切替後の安定待ち時間（秒、デフォルト: 0.7）
    --similarity-threshold FLOAT     類似度閾値 0.0〜1.0（デフォルト: 0.0005）
@@ -83,6 +124,11 @@ python video2slides.py INPUT [OPTIONS]
    --background-color-detection on|off  スライド主体フレームの検出（デフォルト: off）
    --dedup-mode keep|remove         重複スライドの扱い（デフォルト: keep）
    --clean on|off                   スライドPDFの背景除去（デフォルト: off）
+   --bg-pages INT                   背景推定に使用するページ数（デフォルト: 60）
+   --percentile FLOAT               背景推定のパーセンタイル（デフォルト: 90.0）
+   --exclude-color-rich             彩度が高いページを背景推定から除外
+   --intensity FLOAT                背景除去強度 0.0-1.0（デフォルト: 1.0）
+   --dpi INT                        変換DPI（デフォルト: 72）
    --keep-images                    中間画像を保存
    --image-format jpg|png           画像形式（デフォルト: jpg）
    --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
@@ -157,6 +203,89 @@ PDF 生成
 画像内のほぼ同一色の領域が 20% 以上を占めるフレームのみをスライドとして扱います。
 プレゼン内容以外のフレーム（黒画面、タイトルカード等）を除外できます。
 
+## `--clean on` の詳細
+
+`--clean on` を指定すると、生成されたスライド PDF に対して背景除去（透かし・色付き背景の除去）を自動で実行します。
+
+### 処理パイプライン
+
+```
+スライド PDF
+ ↓
+全ページを画像として読み込み（72 DPI）
+ ↓
+全ページ共通の背景バイアスを推定（p90）
+ ↓
+乗算モデルで各ページを補正（ホワイトバランス）
+ ↓
+背景除去後の PDF を保存
+```
+
+### 背景推定
+
+PDF の全ページから等間隔に最大 60 ページをサンプリングし、各ピクセル位置の値ヒストグラムから `--percentile` 番目の値（デフォルト p90）を計算します。全ページで共通して明るい成分が背景バイアスとして推定されます。
+
+- **`--bg-pages`** — 背景推定に使用するページ数（デフォルト: `60`）。PDF のページ数が多いほど処理時間がかかりますが、推定の安定性が向上します。
+- **`--percentile`** — 背景推定のパーセンタイル（デフォルト: `90.0`）。
+  - `90`（デフォルト）: 標準的な透かし除去
+  - `95`: より保守的な除去（背景が残る方向）
+  - `85`: より積極的な除去（背景が強く消える）
+- **`--exclude-color-rich`** — 彩度が高いページ（写真など）を背景推定のサンプリングから除外します。色リッチなページは背景成分が不明確で、推定精度を下げる可能性がある場合に有効です。
+
+### 背景除去（乗算モデル / ホワイトバランス補正）
+
+推定した背景バイアスを使って各ページを補正します：
+
+```
+補正係数 = (255 / 背景)^intensity
+出力 = clip(入力 × 補正係数, 0, 255)
+```
+
+背景が明るい領域は白に近づき、背景が濃い領域は相対的に明るくなります。暗いコンテンツ（文字、線）は乗算モデルにより保持されます。
+
+- **`--intensity`** — 背景除去の強度（デフォルト: `1.0`）。
+  - `1.0`: 背景を完全に白飛ばし
+  - `0.5`: 背景の半分だけ白飛ばし
+  - `0.0`: 除去しない（デバッグ用）
+
+### 出力ファイル
+
+`--clean on` 指定時、以下のファイルが生成されます：
+
+| ファイル | 説明 |
+|---------|------|
+| `<stem>_cleaned.pdf` | 背景除去後の PDF |
+| `output/before_after.png` | 元画像・背景マップ・除去後の比較シート |
+| `output/bg_map_used.png` | 推定に使用した背景マップ |
+
+`<stem>` は入力ファイル名から拡張子を除いた部分です。出力ファイル名が `_cleaned` で終わる場合、二重 suffix を避けて上書きされます。
+
+### 推奨パラメータ
+
+| 用途 | --bg-pages | --percentile | --intensity | --dpi |
+|------|-----------|-------------|-------------|-------|
+| 標準（背景除去） | `60` | `90` | `1.0` | `72` |
+| 強い塗りつぶし | `60` | `90` | `1.0` | `72` |
+| 文字の細部を保持 | `60` | `90` | `1.0` | `150` |
+| 写真混じりドキュメント | `60` | `90` | `1.0` | `72` |
+
+### トラブルシューティング
+
+#### 背景が完全に除去されない
+
+- `--intensity` が `1.0` になっているか確認してください。
+- `--percentile` を下げてみてください（例: `--percentile 85`）。
+
+#### 原本の文字まで消えてしまう
+
+- `--intensity` を `0.5` などに下げてみてください。
+- `--percentile` を上げてみてください（例: `--percentile 95`）。
+
+#### 処理が遅い / メモリ不足
+
+- `--bg-pages` を減らしてみてください（例: `--bg-pages 30`）。
+- `--clean off` で使用するか、`--sample-interval` を大きくしてスライド数を減らすことを検討してください。
+
 ## 推奨パラメータ
 
 | パラメータ | 推奨値 | 説明 |
@@ -195,6 +324,21 @@ brew install ffmpeg
 2. `--sample-interval` を調整
 3. `--similarity-threshold` を調整
 4. `--debug` で `debug/` ディレクトリに判定候補画像が保存されるので確認
+
+### 背景除去後、背景が完全に除去されない
+
+- 背景が濃い場合、乗算モデルでは完全除去が難しい場合があります。
+- 背景が明るい透かしの場合は効果的です。
+
+### 原本の文字まで消えてしまう
+
+- 背景と文字の境界が不明確な場合に発生します。
+- 背景除去の影響が小さい場合は、`--clean off` で使用してください。
+
+### 処理が遅い / メモリ不足
+
+- `--clean on` は PDF の全ページを画像として展開するため、メモリ使用量が増加します。
+- ページ数が多い場合は、`--sample-interval` を大きくしてスライド数を減らすことを検討してください。
 
 ### 依存パッケージのインストールに失敗
 
