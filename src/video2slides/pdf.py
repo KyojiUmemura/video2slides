@@ -25,7 +25,7 @@ def generate_pdf(
     1画像＝1ページ。ページサイズは画像のアスペクト比に合わせる。
     余白は追加しない。
 
-    引数 slides は generator であり、画像は一度に1枚ずつ処理される。
+    引数 slides は generator であり、各画像は1枚ずつ一時ファイルに保存される。
     一時ファイルは tempfile 内で管理され、完了後に自動削除される。
 
     slides の要素は (timestamp, PIL.Image) または (timestamp, Path) のいずれか。

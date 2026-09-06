@@ -155,6 +155,8 @@ def detect_slides(
         prev_image = img
 
     # 統計情報を返すための特殊オブジェクト（イテレータ終了時にアクセス可能）
+    # NOTE: isinstance による判別は fragile。将来 SlideCandidate サブクラスが
+    # 追加された場合に衝突する可能性があるので、必要なら専用の終了マークに置き換え。
     yield _DetectionStats(total_candidates, duplicates_rejected)
 
 

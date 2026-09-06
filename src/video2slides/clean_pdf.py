@@ -14,6 +14,8 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
+from PIL import Image
+
 import fitz  # PyMuPDF
 import numpy as np
 

@@ -15,6 +15,9 @@ from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video, save_image
 
 
+_VERSION = "2026-09-06"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="video2slides",
@@ -108,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"video2slides {__version__}",
+        version=f"video2slides {_VERSION}",
     )
     return parser
 
@@ -237,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     debug_dir = Path("debug") if args.debug else None
     print("Detecting slides...")
 
-    slides_gen = detect_slides(
+    slides = detect_slides(
         frames=frames_iter,
         similarity_threshold=args.similarity_threshold,
         settle_time=args.settle_time,
@@ -247,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     # generator を消費してスライドリストと統計を取得
-    accepted, result = collect_detection_result(slides_gen)
+    accepted, result = collect_detection_result(slides)
 
     # 進捗表示
     print()

@@ -356,7 +356,7 @@ python video2slides.py INPUT
 --verbose
 --debug
 --overwrite
---version
+--version                        バージョン表示（YYYY-MM-DD 形式、README.md に固定）
 ```
 
 例：

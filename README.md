@@ -135,7 +135,7 @@ python video2slides.py INPUT [OPTIONS]
    --verbose, -v                    デバッグ情報を出力
    --debug                          verbose + debug/ に判定候補を保存
    --overwrite                      既存の出力ファイルを上書き
-   --version                        バージョン表示
+   --version                        バージョン表示（YYYY-MM-DD 形式、README.md に固定）
 ```
 
 ### 使用例
