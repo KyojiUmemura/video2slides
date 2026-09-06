@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import shutil
+import statistics
 import sys
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video
 
 
-_VERSION = "2026-09-07"
+_VERSION = "2026-09-08"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -236,7 +237,6 @@ def main(argv: list[str] | None = None) -> int:
 
     # 検出統計の表示
     if args.background_color_detection == "on" and detection_stats["total"] > 0:
-        import statistics
         ratios = detection_stats["ratios"]
         detected_ratios = [r for r in ratios if r >= 0.20]
         rejected_ratios = [r for r in ratios if r < 0.20]
@@ -330,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
         cleaned_path.rename(output_path)
         print(f"  Cleaned PDF saved: {output_path}")
 
-    print(f"Done! {len(accepted)} slides -> {output_path}")
+    print(f"Done! {total_candidates - duplicates_rejected} slides -> {output_path}")
     return 0
 
 

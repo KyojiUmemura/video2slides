@@ -10,7 +10,7 @@ values that vary page-to-page are content.
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 
 # ---------------------------------------------------------------------------
@@ -42,8 +42,14 @@ def positional_background(pages, percentile: float = 90.0, tol: int = 16,
     bg = np.quantile(stack, percentile / 100.0, axis=0)
 
     if smooth_sigma > 0:
-        from scipy.ndimage import gaussian_filter
-        bg = gaussian_filter(bg, sigma=(smooth_sigma, smooth_sigma, 0))
+        # Convert to PIL Image for Gaussian blur
+        bg_u8 = np.clip(bg * 255, 0, 255).astype(np.uint8)
+        bg_pil = Image.fromarray(bg_u8)
+        # Apply Gaussian blur (radius ≈ sigma * 2)
+        radius = max(1, int(smooth_sigma * 2))
+        bg_pil = bg_pil.filter(ImageFilter.GaussianBlur(radius=radius))
+        # Convert back to float array
+        bg = np.array(bg_pil).astype(np.float32) / 255.0
 
     # Confidence: at each position, what fraction of pages sit within tol of bg
     diff = np.abs(stack - bg).max(axis=3)          # (N, H, W)

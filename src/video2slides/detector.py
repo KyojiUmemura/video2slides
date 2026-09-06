@@ -167,31 +167,6 @@ class DetectionStats:
     duplicates_rejected: int
 
 
-def collect_detection_result(
-    slides: Iterator[SlideCandidate],
-) -> tuple[list[SlideCandidate], DetectionResult]:
-    """generator を消費して DetectionResult を構築する。
-
-    戻り値:
-        (accepted_slides, result_stats)
-    """
-    accepted: list[SlideCandidate] = []
-    total_candidates = 0
-    duplicates_rejected = 0
-
-    for item in slides:
-        if isinstance(item, DetectionStats):
-            total_candidates = item.total_candidates
-            duplicates_rejected = item.duplicates_rejected
-        else:
-            accepted.append(item)
-
-    return accepted, DetectionResult(
-        total_candidates=total_candidates,
-        duplicates_rejected=duplicates_rejected,
-    )
-
-
 def _fmt_ts(ts: float) -> str:
     """秒を HH:MM:SS.ss にフォーマットする。"""
     hours = int(ts // 3600)

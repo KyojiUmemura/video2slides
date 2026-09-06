@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 import fitz  # PyMuPDF
+import img2pdf
 import numpy as np
 from PIL import Image
 
@@ -142,8 +143,6 @@ def _images_to_pdf_jpeg(
     quality: int,
 ) -> bytes:
     """Create PDF by embedding JPEG-compressed pages via PIL."""
-    import img2pdf  # lazy import; optional dependency
-
     buffers = []
     for img in images:
         pil_img = Image.fromarray(img)
