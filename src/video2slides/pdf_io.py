@@ -76,6 +76,36 @@ def get_page_size(pdf_path: str | Path, page_index: int = 0, dpi: int = 300) -> 
     return width, height
 
 
+def iter_pdf_pages(
+    pdf_path: str | Path,
+    dpi: int = 72,
+):
+    """Yield each page of a PDF as an RGB numpy array, one at a time.
+
+    The PDF document is opened once and pages are rendered on demand,
+    so only one page's worth of memory is held at a time.
+
+    Yields:
+        (page_index, rgb_array) pairs in document order.
+    """
+    pdf_path = Path(pdf_path)
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"Input PDF not found: {pdf_path}")
+
+    doc = fitz.open(str(pdf_path))
+    try:
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            zoom = dpi / 72.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            arr = np.array(img)
+            yield page_num, arr
+    finally:
+        doc.close()
+
+
 def save_pdf(
     images: List[np.ndarray],
     output_path: str | Path,

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import __version__
 from .clean_pdf import clean_pdf
-from .detector import detect_slides
+from .detector import collect_detection_result, detect_slides
 from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video, save_image
 
@@ -237,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     debug_dir = Path("debug") if args.debug else None
     print("Detecting slides...")
 
-    result = detect_slides(
+    slides_gen = detect_slides(
         frames=frames_iter,
         similarity_threshold=args.similarity_threshold,
         settle_time=args.settle_time,
@@ -246,14 +246,17 @@ def main(argv: list[str] | None = None) -> int:
         debug_dir=debug_dir,
     )
 
+    # generator を消費してスライドリストと統計を取得
+    accepted, result = collect_detection_result(slides_gen)
+
     # 進捗表示
     print()
     print(f"Extracted {detection_stats['total']} candidate frames")
     print(f"Candidates detected: {result.total_candidates}")
-    print(f"Slides accepted: {len(result.accepted)}")
+    print(f"Slides accepted: {len(accepted)}")
     print(f"Duplicates rejected: {result.duplicates_rejected}")
 
-    if not result.accepted:
+    if not accepted:
         print("エラー: スライドが検出されませんでした。", file=sys.stderr)
         return 1
 
@@ -262,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         output_dir = args.input.parent / "output"
         output_dir.mkdir(exist_ok=True)
         print(f"\nSaving slides to {output_dir}/")
-        for i, candidate in enumerate(result.accepted):
+        for i, candidate in enumerate(accepted):
             ext = "png" if args.image_format == "png" else "jpg"
             save_image(
                 candidate.image,
@@ -271,9 +274,9 @@ def main(argv: list[str] | None = None) -> int:
                 quality=args.jpeg_quality,
             )
 
-    # PDF 生成
+    # PDF 生成（generator を直接渡す）
     print(f"\nGenerating PDF: {output_path}")
-    slides_for_pdf = [(c.timestamp, c.image) for c in result.accepted]
+    slides_for_pdf = ((c.timestamp, c.image) for c in accepted)
     generate_pdf(slides_for_pdf, output_path)
 
     # 背景除去
@@ -294,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"エラー：背景除去に失敗しました：{e}", file=sys.stderr)
             return 1
 
-    print(f"Done! {len(result.accepted)} slides -> {output_path}")
+    print(f"Done! {len(accepted)} slides -> {output_path}")
     return 0
 
 

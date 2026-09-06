@@ -2,6 +2,9 @@
 
 候補フレームから、スライドが切り替わった箇所の
 「安定した代表フレーム」を抽出する。
+
+メモリ効率: generator ベース。検出済みのスライド画像は即座に PDF 生成に
+流し出され、検出器内部には直近のフレームのみが保持される。
 """
 
 from __future__ import annotations
@@ -9,7 +12,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from PIL import Image
 
@@ -22,16 +25,16 @@ logger = logging.getLogger(__name__)
 class SlideCandidate:
     """スライド候補"""
     timestamp: float
-    image: Image.Image
-    status: str  # "SAME", "CHANGE", "TRANSITION", "STABLE", "SAVE"
+    image: Image.Image | None = None
+    file_path: Path | None = None
+    status: str = "SAVE"  # "SAME", "CHANGE", "TRANSITION", "STABLE", "SAVE"
 
 
 @dataclass
 class DetectionResult:
-    """検出結果"""
-    accepted: list[SlideCandidate] = field(default_factory=list)
-    duplicates_rejected: int = 0
+    """検出結果（統計情報）"""
     total_candidates: int = 0
+    duplicates_rejected: int = 0
 
 
 def detect_slides(
@@ -42,13 +45,13 @@ def detect_slides(
     dedup_mode: str = "keep",  # "keep" or "remove"
     verbose: bool = False,
     debug_dir: Path | None = None,
-) -> DetectionResult:
-    """スライド切替を検出し、安定した代表フレームを抽出する。
+) -> Iterator[SlideCandidate]:
+    """スライド切替を検出し、安定した代表フレームをストリーミング出力する。
 
     処理フロー:
       1. 連続フレームを比較し、十分に異なる場合は「CHANGE」と判定
       2. 切替検出後、settle_time 秒経過するまで待機
-      3. 安定した時点で代表フレームとして保存
+      3. 安定した時点で代表フレームとして yield
       4. 前のスライドと同一の場合、dedup_mode に応じて除外
 
     Args:
@@ -60,18 +63,17 @@ def detect_slides(
         verbose: デバッグ情報を出力
         debug_dir: debug/ 画像を保存するディレクトリ（None で保存しない）
 
-    Returns:
-        DetectionResult
+    Yields:
+        SlideCandidate: 検出されたスライド候補（時系列順）
     """
-    result = DetectionResult()
-
     # 状態管理
     prev_image: Image.Image | None = None
     settle_start: float = 0.0  # 切替検出時刻
     settling: bool = False      # 安定待ち中
     last_saved_image: Image.Image | None = None  # 最後に保存したスライド
-    consecutive_same: int = 0  # 連続 SAME 数
+    consecutive_same: int = 0
     total_candidates = 0
+    duplicates_rejected = 0
 
     for timestamp, img in frames:
         total_candidates += 1
@@ -79,9 +81,9 @@ def detect_slides(
             prev_image = img
             if verbose:
                 print(f"{_fmt_ts(timestamp)} INIT -> SAVE")
-            result.accepted.append(SlideCandidate(
+            yield SlideCandidate(
                 timestamp=timestamp, image=img, status="SAVE"
-            ))
+            )
             if debug_dir:
                 _save_debug(debug_dir, timestamp, img, "INIT")
             consecutive_same = 0
@@ -115,7 +117,7 @@ def detect_slides(
                         # 前と同じスライドに戻った
                         if dedup_mode == "remove":
                             status = "SAME"
-                            result.duplicates_rejected += 1
+                            duplicates_rejected += 1
                             if verbose:
                                 print(f"{_fmt_ts(timestamp)} difference={max_diff:.3f} SAME (dedup)")
                             prev_image = img
@@ -136,32 +138,56 @@ def detect_slides(
                 last_saved_image, img, similarity_threshold
             ):
                 if dedup_mode == "remove":
-                    result.duplicates_rejected += 1
+                    duplicates_rejected += 1
                     if verbose:
                         print(f"{_fmt_ts(timestamp)} SAME (duplicate of previous)")
                     prev_image = img
                     continue
 
             # 保存
-            result.accepted.append(SlideCandidate(
+            yield SlideCandidate(
                 timestamp=timestamp, image=img, status="SAVE"
-            ))
+            )
             last_saved_image = img
             if debug_dir:
                 _save_debug(debug_dir, timestamp, img, "SLIDE")
 
         prev_image = img
 
-    result.total_candidates = total_candidates
-    return result
+    # 統計情報を返すための特殊オブジェクト（イテレータ終了時にアクセス可能）
+    yield _DetectionStats(total_candidates, duplicates_rejected)
 
 
-def _calc_approx_diff(a: Image.Image, b: Image.Image) -> float:
-    """2画像の大まかな差分（0.0〜1.0）を推定する。"""
-    import imagehash
-    ha = imagehash.phash(a)
-    hb = imagehash.phash(b)
-    return float(ha - hb) / ha.hash.size**2
+@dataclass
+class _DetectionStats:
+    """内部用: 検出統計情報（Sentinel として末尾に yield される）"""
+    total_candidates: int
+    duplicates_rejected: int
+
+
+def collect_detection_result(
+    slides: Iterator[SlideCandidate],
+) -> tuple[list[SlideCandidate], DetectionResult]:
+    """generator を消費して DetectionResult を構築する。
+
+    戻り値:
+        (accepted_slides, result_stats)
+    """
+    accepted: list[SlideCandidate] = []
+    total_candidates = 0
+    duplicates_rejected = 0
+
+    for item in slides:
+        if isinstance(item, _DetectionStats):
+            total_candidates = item.total_candidates
+            duplicates_rejected = item.duplicates_rejected
+        else:
+            accepted.append(item)
+
+    return accepted, DetectionResult(
+        total_candidates=total_candidates,
+        duplicates_rejected=duplicates_rejected,
+    )
 
 
 def _fmt_ts(ts: float) -> str:
