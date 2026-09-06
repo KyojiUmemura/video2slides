@@ -19,6 +19,8 @@ import img2pdf
 def generate_pdf(
     slides: Iterator[tuple[float, Image.Image | Path]],
     output_path: Path,
+    image_format: str = "png",
+    jpeg_quality: int = 95,
 ) -> None:
     """スライド画像を時系列順に並べて PDF に出力する。
 
@@ -42,15 +44,19 @@ def generate_pdf(
         tmp = Path(tmpdir)
         paths: list[Path] = []
 
+        ext = "jpg" if image_format == "jpg" else "png"
         for i, (_, src) in enumerate(slides):
-            p = tmp / f"slide_{i:04d}.png"
+            p = tmp / f"slide_{i:04d}.{ext}"
             if isinstance(src, Path):
                 # ファイルパスから直接コピー
                 import shutil
                 shutil.copy2(str(src), str(p))
             else:
                 # PIL Image を保存
-                src.save(str(p), "PNG")
+                if image_format == "jpg":
+                    src.save(str(p), "JPEG", quality=jpeg_quality, optimize=True)
+                else:
+                    src.save(str(p), "PNG")
             paths.append(p)
 
         # img2pdf で PDF 生成（全パスを一度に渡すのはディスク上のファイルのみ）

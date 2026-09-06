@@ -31,6 +31,9 @@ def clean_pdf(
     percentile: float = 90.0,
     intensity: float = 1.0,
     model: str = "multiplicative",
+    dpi: int = 72,
+    image_format: str = "png",
+    jpeg_quality: int = 95,
 ) -> Path:
     """Clean background from a PDF and save the result.
 
@@ -41,6 +44,9 @@ def clean_pdf(
         percentile: Per-pixel histogram percentile for bg map (default 90).
         intensity: Removal intensity 0-1 (default 1.0 = full removal).
         model: "additive" or "multiplicative" (default multiplicative).
+        dpi: Render DPI for page extraction (default 72).
+        image_format: Output image format "png" or "jpg" (default "png").
+        jpeg_quality: JPEG quality when image_format="jpg" (1-100, default 95).
 
     Returns:
         Path to the cleaned PDF file.
@@ -58,7 +64,7 @@ def clean_pdf(
     # Only bg_pages pages are held in memory at once.
     # ------------------------------------------------------------------
     bg_pages_list = []
-    for _page_idx, page in iter_pdf_pages(input_pdf, dpi=72):
+    for _page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
         bg_pages_list.append(page)
         if len(bg_pages_list) >= bg_pages:
             break
@@ -79,7 +85,7 @@ def clean_pdf(
     print(f"  Removing background ({model}, intensity={intensity}) and writing...")
     doc = fitz.open()
 
-    for page_idx, page in iter_pdf_pages(input_pdf, dpi=72):
+    for page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
         # Remove background for this single page
         cleaned = remove_background([page], bg, model=model, intensity=intensity)[0]
 
@@ -90,7 +96,10 @@ def clean_pdf(
         # Embed the cleaned page image
         pil_img = Image.fromarray(cleaned)
         buf = io.BytesIO()
-        pil_img.save(buf, format="PNG")
+        if image_format == "jpg":
+            pil_img.save(buf, format="JPEG", quality=jpeg_quality, optimize=True)
+        else:
+            pil_img.save(buf, format="PNG")
         buf.seek(0)
         out_page.insert_image(
             fitz.Rect(0, 0, w, h),

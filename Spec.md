@@ -347,7 +347,6 @@ python video2slides.py INPUT
 --clean on|off
 --bg-pages INT
 --percentile FLOAT
---exclude-color-rich
 --intensity FLOAT
 --dpi INT
 --keep-images
@@ -388,6 +387,13 @@ Candidates detected: 83
 Slides accepted: 57
 Duplicates rejected: 26
 ```
+
+進捗状況の報告の対象となるのは，下記の処理である。
+
+1 Slide Frame の判定，抽出
+2 Slide.pdfの生成
+3 背景画像の特定
+4 背景消去済みのpdfの生成
 
 可能であれば `tqdm` を使用する。
 

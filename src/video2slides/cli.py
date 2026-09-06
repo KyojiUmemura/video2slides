@@ -82,6 +82,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="中間スライド画像を output/ に保存する",
     )
     parser.add_argument(
+        "--bg-pages",
+        type=int,
+        default=60,
+        help="背景推定に使用するページ数（デフォルト: 60）",
+    )
+    parser.add_argument(
+        "--percentile",
+        type=float,
+        default=90.0,
+        help="背景推定のパーセンタイル（デフォルト: 90.0）",
+    )
+    parser.add_argument(
+        "--intensity",
+        type=float,
+        default=1.0,
+        help="背景除去強度 0.0-1.0（デフォルト: 1.0）",
+    )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=72,
+        help="変換DPI（デフォルト: 72）",
+    )
+    parser.add_argument(
         "--image-format",
         choices=["jpg", "png"],
         default="jpg",
@@ -280,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     # PDF 生成（generator を直接渡す）
     print(f"\nGenerating PDF: {output_path}")
     slides_for_pdf = ((c.timestamp, c.image) for c in accepted)
-    generate_pdf(slides_for_pdf, output_path)
+    generate_pdf(slides_for_pdf, output_path, image_format=args.image_format, jpeg_quality=args.jpeg_quality)
 
     # 背景除去
     # 背景除去
@@ -294,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
         cleaned_path = output_path.parent / cleaned_name
         print(f"\nCleaning background: {cleaned_path}")
         try:
-            clean_pdf(output_path, cleaned_path)
+            clean_pdf(output_path, cleaned_path, bg_pages=args.bg_pages, percentile=args.percentile, intensity=args.intensity, image_format=args.image_format, jpeg_quality=args.jpeg_quality)
             output_path = cleaned_path
         except Exception as e:
             print(f"エラー：背景除去に失敗しました：{e}", file=sys.stderr)

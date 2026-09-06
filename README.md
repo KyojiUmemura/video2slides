@@ -126,7 +126,6 @@ python video2slides.py INPUT [OPTIONS]
    --clean on|off                   スライドPDFの背景除去（デフォルト: off）
    --bg-pages INT                   背景推定に使用するページ数（デフォルト: 60）
    --percentile FLOAT               背景推定のパーセンタイル（デフォルト: 90.0）
-   --exclude-color-rich             彩度が高いページを背景推定から除外
    --intensity FLOAT                背景除去強度 0.0-1.0（デフォルト: 1.0）
    --dpi INT                        変換DPI（デフォルト: 72）
    --keep-images                    中間画像を保存
