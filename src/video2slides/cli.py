@@ -260,12 +260,13 @@ def main(argv: list[str] | None = None) -> int:
         image_format=args.image_format,
         jpeg_quality=args.jpeg_quality,
     )
+    slides_accepted = total_candidates - duplicates_rejected
 
     # Display progress
     print()
-    print(f"Extracted {detection_stats['total']} candidate frames")
-    print(f"Candidates detected: {total_candidates}")
-    print(f"Slides accepted: {total_candidates - duplicates_rejected}")
+    print(f"Sampled frames: {detection_stats['total']}")
+    print(f"Slides detected: {total_candidates}")
+    print(f"Slides accepted: {slides_accepted}")
     print(f"Duplicates rejected: {duplicates_rejected}")
 
     # The frame generator was consumed by generate_pdf(), so statistics are final here.
@@ -297,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
             if len(rejected_ratios) > 1:
                 print(f"    Std dev: {statistics.stdev(rejected_ratios):.4f}")
 
-    if total_candidates - duplicates_rejected == 0:
+    if slides_accepted == 0:
         print("Error: No slides were detected.", file=sys.stderr)
         return 1
 
@@ -334,7 +335,7 @@ def main(argv: list[str] | None = None) -> int:
         cleaned_path.rename(output_path)
         print(f"  Cleaned PDF saved: {output_path}")
 
-    print(f"Done! {total_candidates - duplicates_rejected} slides -> {output_path}")
+    print(f"Done! {slides_accepted} slides -> {output_path}")
     return 0
 
 

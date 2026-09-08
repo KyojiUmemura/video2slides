@@ -76,8 +76,8 @@ def detect_slides(
     duplicates_rejected = 0
 
     for timestamp, img in frames:
-        total_candidates += 1
         if prev_image is None:
+            total_candidates += 1  # first slide detected
             prev_image = img
             if verbose:
                 print(f"{_fmt_ts(timestamp)} INIT -> SAVE")
@@ -133,6 +133,7 @@ def detect_slides(
             print(f"{_fmt_ts(timestamp)} difference={max_diff:.3f} {status}")
 
         if status == "STABLE":
+            total_candidates += 1  # a new slide was detected
             # Check for duplicates
             if last_saved_image is not None and are_similar(
                 last_saved_image, img, similarity_threshold
@@ -163,8 +164,8 @@ def detect_slides(
 @dataclass
 class DetectionStats:
     """Detection statistics (yielded at the end as a sentinel)."""
-    total_candidates: int
-    duplicates_rejected: int
+    total_candidates: int  # distinct slides detected (before dedup), i.e. the page count + duplicates_rejected
+    duplicates_rejected: int  # detected slides dropped by --dedup-mode remove
 
 
 def _fmt_ts(ts: float) -> str:

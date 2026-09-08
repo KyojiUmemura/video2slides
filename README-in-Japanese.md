@@ -18,7 +18,7 @@ brew install ffmpeg
 
 ### 2. Python 環境の構築
 
-Python 3.11 以上が必要です。
+Python 3.10 以上が必要です。
 
 ```bash
 # 仮想環境を作成（推奨）
