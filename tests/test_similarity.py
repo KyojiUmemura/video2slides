@@ -1,8 +1,8 @@
-"""画像類似度判定のユニットテスト。
+"""Unit tests for image similarity detection.
 
-pHash は「同じレイアウト・異なる内容」には不感で、
-「異なるレイアウト」にも敏感ではない（距離 < 0.02）。
-実測に基づき、この特性でテストする。
+pHash is insensitive to the same layout with different content and is also
+not very sensitive to different layouts (distance < 0.02). These tests use
+that empirically observed behavior.
 """
 
 import sys
@@ -19,7 +19,7 @@ def _slide_layout_top_bar(
     bar_color: tuple[int, ...],
     size: tuple[int, int] = (640, 480),
 ) -> Image.Image:
-    """上部にバーがあるスライドレイアウト。"""
+    """Slide layout with a bar at the top."""
     img = Image.new("RGB", size, (255, 255, 255))
     draw = ImageDraw.Draw(img)
     draw.rectangle([0, 0, size[0], 80], fill=bar_color)
@@ -30,7 +30,7 @@ def _slide_layout_left_bar(
     bar_color: tuple[int, ...],
     size: tuple[int, int] = (640, 480),
 ) -> Image.Image:
-    """左側にバーがあるスライドレイアウト。"""
+    """Slide layout with a bar on the left."""
     img = Image.new("RGB", size, (255, 255, 255))
     draw = ImageDraw.Draw(img)
     draw.rectangle([0, 0, 120, size[1]], fill=bar_color)
@@ -41,12 +41,12 @@ def _slide_layout_full_image(
     color: tuple[int, ...],
     size: tuple[int, int] = (640, 480),
 ) -> Image.Image:
-    """全面単色のスライド。"""
+    """Solid-color slide."""
     return Image.new("RGB", size, color)
 
 
 def _random_noise(size: tuple[int, int] = (640, 480)) -> Image.Image:
-    """ランダムノイズ画像。"""
+    """Random-noise image."""
     import random
     random.seed(42)
     img = Image.new("RGB", size)
@@ -61,26 +61,26 @@ def _random_noise(size: tuple[int, int] = (640, 480)) -> Image.Image:
 
 
 def _slightly_brighter(img: Image.Image) -> Image.Image:
-    """明るさを少し上げる。"""
+    """Increase brightness slightly."""
     return img.point(lambda p: min(255, p + 15))
 
 
 class TestPhashDistance:
-    """pHash distance のテスト。"""
+    """Tests for pHash distance."""
 
     def test_identical_image_distance_is_zero(self):
-        """同一画像の distance は 0。"""
+        """Identical images have a distance of 0."""
         img = _slide_layout_top_bar((30, 60, 150))
         assert phash_distance(img, img) == 0.0
 
     def test_same_layout_different_color_same_hash(self):
-        """同じレイアウト・色違いは distance=0。"""
+        """The same layout in different colors has distance=0."""
         img_a = _slide_layout_top_bar((30, 60, 150))
         img_b = _slide_layout_top_bar((180, 30, 30))
         assert phash_distance(img_a, img_b) == 0.0
 
     def test_different_layouts_have_small_distance(self):
-        """異なるレイアウトも distance は小さい（pHash の特性）:
+        """Different layouts also have a small distance (a pHash property):
         0.0001 < dist < 0.02
         """
         img_a = _slide_layout_top_bar((30, 60, 150))
@@ -89,14 +89,14 @@ class TestPhashDistance:
         assert 0.0001 < dist < 0.02
 
     def test_full_color_vs_layout(self):
-        """全面単色 vs レイアウト付き: dist > 0"""
+        """Solid color versus a structured layout: dist > 0."""
         img_a = _slide_layout_full_image((100, 100, 100))
         img_b = _slide_layout_top_bar((30, 60, 150))
         dist = phash_distance(img_a, img_b)
         assert dist > 0
 
     def test_noise_vs_slide(self):
-        """ノイズ vs スライド: 0.001 < dist < 0.02"""
+        """Noise versus slide: 0.001 < dist < 0.02."""
         img_a = _random_noise()
         img_b = _slide_layout_top_bar((30, 60, 150))
         dist = phash_distance(img_a, img_b)
@@ -104,55 +104,55 @@ class TestPhashDistance:
 
 
 class TestAreSimilar:
-    """are_similar のテスト。デフォルト閾値 0.0005 で動作確認。"""
+    """Tests for are_similar using the default threshold of 0.0005."""
 
     def test_same_image_is_similar(self):
-        """同一画像は類似。"""
+        """Identical images are similar."""
         img = _slide_layout_top_bar((30, 60, 150))
         assert are_similar(img, img) is True
 
     def test_same_layout_is_similar(self):
-        """同じレイアウトは色違いでも類似。"""
+        """The same layout remains similar with different colors."""
         img_a = _slide_layout_top_bar((30, 60, 150))
         img_b = _slide_layout_top_bar((180, 30, 30))
         assert are_similar(img_a, img_b) is True
 
     def test_brightness_change_is_similar(self):
-        """明るさの微妙な変化は類似。"""
+        """Slight brightness changes are similar."""
         img_a = _slide_layout_top_bar((30, 60, 150))
         img_b = _slightly_brighter(img_a)
         assert are_similar(img_a, img_b) is True
 
     def test_different_layout_may_be_similar(self):
-        """異なるレイアウトでも pHash によっては類似になる:
-        閾値 0.02 では same_layout (0.0) は類似、
-        different_layout (0.0001-0.02) は閾値次第。
+        """Different layouts may be similar according to pHash:
+        With threshold 0.02, same_layout (0.0) is similar, while
+        different_layout (0.0001-0.02) depends on the threshold.
         """
         img_a = _slide_layout_top_bar((30, 60, 150))
         img_b = _slide_layout_left_bar((30, 60, 150))
         dist = phash_distance(img_a, img_b)
-        # 閾値より下なら similar
+        # Similar when below the threshold
         if dist < 0.02:
             assert are_similar(img_a, img_b, threshold=0.02) is True
-        # 閾値を厳しくすれば not similar
+        # Not similar with a stricter threshold
         assert are_similar(img_a, img_b, threshold=dist / 2) is False
 
     def test_noise_not_similar_with_strict_threshold(self):
-        """ノイズは厳しめの閾値では類似しない。"""
+        """Noise is not similar at a strict threshold."""
         img_a = _random_noise()
         img_b = _slide_layout_top_bar((30, 60, 150))
-        # ノイズは distance が大きめ（~0.002）
-        # 厳しい閾値では非類似
+        # Noise has a relatively large distance (~0.002)
+        # Not similar at a strict threshold
         assert are_similar(img_a, img_b, threshold=0.001) is False
-        # 緩い閾値なら類似になる可能性
+        # May be similar with a loose threshold
         assert are_similar(img_a, img_b, threshold=0.05) is True
 
     def test_threshold_adjustment(self):
-        """閾値で制御可能。"""
+        """Similarity can be controlled by the threshold."""
         img_a = _slide_layout_top_bar((30, 60, 150))
         img_b = _slightly_brighter(img_a)
         dist = phash_distance(img_a, img_b)
-        # 閾値より小さい値なら類似
+        # Similar when the value is below the threshold
         assert are_similar(img_a, img_b, threshold=dist + 0.001) is True
-        # 閾値より大きい値なら非類似
+        # Not similar when the value is above the threshold
         assert are_similar(img_a, img_b, threshold=dist - 0.001) is False

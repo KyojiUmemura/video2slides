@@ -1,7 +1,7 @@
-"""画像の知覚ハッシュによる類似度判定。
+"""Image similarity detection using perceptual hashes.
 
-imagehash の pHash（perceptual hash）を使用して、
-2つの画像が「視覚的に同じスライド」かどうかを判定する。
+Use imagehash pHash (perceptual hash) to determine whether two images are
+visually the same slide.
 """
 
 from __future__ import annotations
@@ -16,13 +16,13 @@ def phash_distance(
     img_b: Image.Image,
     hash_size: int = 16,
 ) -> float:
-    """2画像の pHash ハミング距離を返す。
+    """Return the pHash Hamming distance between two images.
 
-    戻り値: 0.0（完全に同一）〜 1.0（完全に異なる）
+    Returns: 0.0 (identical) to 1.0 (completely different).
 
     Args:
-        img_a, img_b: 比較する PIL 画像
-        hash_size: pHash のハッシュサイズ（デフォルト 16 → 16x16=256bit）
+        img_a, img_b: PIL images to compare.
+        hash_size: pHash size (default 16 -> 16x16=256 bits).
     """
     hash_a = imagehash.phash(img_a, hash_size=hash_size)
     hash_b = imagehash.phash(img_b, hash_size=hash_size)
@@ -33,9 +33,9 @@ def pixel_difference(
     img_a: Image.Image,
     img_b: Image.Image,
 ) -> float:
-    """2画像のピクセルレベル差分（0.0〜1.0）を計算する。
+    """Calculate the pixel-level difference between two images (0.0-1.0).
 
-    平均絶対差分（MAD）を正規化。
+    Normalize the mean absolute difference (MAD).
     """
     arr_a = np.array(img_a.convert("L"), dtype=np.float64)
     arr_b = np.array(img_b.convert("L"), dtype=np.float64)
@@ -49,13 +49,12 @@ def are_similar(
     threshold: float = 0.0005,
     hash_size: int = 16,
 ) -> bool:
-    """threshold 以下なら「同じスライド」と判定する。
+    """Return whether the images are the same slide at the given threshold.
 
-    threshold は pHash distance (0.0〜1.0) で指定する。
-    デフォルト 0.0005 は 256bit pHash の約 32bit 差に相当し、
-    同一スライドのわずかな変化のみを「同じ」と扱う。
-    実測では、同一スライドのフレーム間: <0.001、
-    異なるスライド: 0.001〜0.02 の範囲になる。
+    Specify threshold as a pHash distance (0.0-1.0). The default 0.0005
+    corresponds to approximately 32 differing bits in a 256-bit pHash and
+    treats only minor changes to the same slide as identical. In measurements,
+    frames of the same slide are below 0.001 and different slides are 0.001-0.02.
     """
     return phash_distance(img_a, img_b, hash_size=hash_size) <= threshold
 
@@ -66,10 +65,10 @@ def is_slide_change(
     pixel_threshold: float = 0.1,
     phash_threshold: float = 0.0005,
 ) -> tuple[bool, float]:
-    """スライド切替かどうかを判定する。
+    """Determine whether a slide change occurred.
 
-    pHash とピクセル差分の両方を使用して判定。
-    どちらか一方でも閾値を超えたら「切替あり」とする。
+    Use both pHash and pixel differences. A change occurs when either exceeds
+    its threshold.
 
     Returns:
         (is_change, max_difference)

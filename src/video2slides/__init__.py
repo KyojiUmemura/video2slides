@@ -1,3 +1,3 @@
-"""video2slides — 動画からスライドPDFを自動生成するツール"""
+"""video2slides — a tool that automatically generates slide PDFs from videos."""
 
 __version__ = "0.1.1"

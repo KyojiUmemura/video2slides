@@ -142,7 +142,7 @@ python video2slides.py INPUT [OPTIONS]
    --verbose, -v                    Print debug information
    --debug                          Include verbose output and save detection candidates under debug/
    --overwrite                      Overwrite an existing output file
-   --version                        Print the version in YYYY-MM-DD format, fixed in README.md
+   --version                        Print the version in YY.MM.DD format, fixed in README.md
 ```
 
 ### Valid ranges for numeric options

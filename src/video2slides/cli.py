@@ -1,4 +1,4 @@
-"""CLI エントリーポイント。"""
+"""CLI entry point."""
 
 from __future__ import annotations
 
@@ -22,129 +22,129 @@ from .detector import detect_slides
 from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video
 
-_VERSION = "2026-09-08"
+_VERSION = "26.09.08"
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="video2slides",
-        description="動画からスライドPDFを自動生成するツール",
+        description="Automatically generate a slide PDF from a video",
     )
     parser.add_argument(
         "input",
         type=Path,
-        help="入力動画ファイルパス",
+        help="Input video file path",
     )
     parser.add_argument(
         "--output", "-o",
         type=Path,
         default=None,
-        help="出力PDFファイルパス（デフォルト: 入力ファイル名.pdf）",
+        help="Output PDF file path (default: input filename.pdf)",
     )
     parser.add_argument(
         "--sample-interval",
         type=positive_float,
         metavar="FLOAT",
         default=2.0,
-        help="フレーム抽出間隔（秒、0 より大、デフォルト: 2）",
+        help="Frame extraction interval in seconds (greater than 0; default: 2)",
     )
     parser.add_argument(
         "--settle-time",
         type=nonnegative_float,
         metavar="FLOAT",
         default=0.7,
-        help="スライド切替後の安定待ち時間（秒、0 以上、デフォルト: 0.7）",
+        help="Settle time after a slide change in seconds (0 or greater; default: 0.7)",
     )
     parser.add_argument(
         "--similarity-threshold",
         type=unit_interval_float,
         metavar="FLOAT",
         default=0.0005,
-        help="類似度閾値 pHash distance (0.0〜1.0、デフォルト: 0.0005)",
+        help="Similarity threshold as pHash distance (0.0-1.0; default: 0.0005)",
     )
     parser.add_argument(
         "--crop",
         type=crop_rect,
         metavar="x,y,width,height",
         default=None,
-        help="切り抜き（x,y >= 0, width,height > 0）",
+        help="Crop region (x,y >= 0, width,height > 0)",
     )
     parser.add_argument(
         "--background-color-detection",
         choices=["on", "off"],
         default="off",
-        help="スライド主体フレームの検出 (デフォルト: off)",
+        help="Detect slide-dominant frames (default: off)",
     )
     parser.add_argument(
         "--dedup-mode",
         choices=["keep", "remove"],
         default="keep",
-        help="直前の保存スライドと同一の候補: keep=残す, remove=除去 (デフォルト: keep)",
+        help="Candidate identical to the last saved slide: keep or remove (default: keep)",
     )
     parser.add_argument(
         "--clean",
         choices=["on", "off"],
         default="off",
-        help="スライドPDFの背景除去 (デフォルト: off)",
+        help="Remove the slide PDF background (default: off)",
     )
     parser.add_argument(
         "--bg-pages",
         type=positive_int,
         metavar="INT",
         default=60,
-        help="背景推定に使用するページ数（1 以上、デフォルト: 60）",
+        help="Number of pages used to estimate the background (1 or greater; default: 60)",
     )
     parser.add_argument(
         "--percentile",
         type=percentile_float,
         metavar="FLOAT",
         default=90.0,
-        help="背景推定のパーセンタイル（0.0〜100.0、デフォルト: 90.0）",
+        help="Background estimation percentile (0.0-100.0; default: 90.0)",
     )
     parser.add_argument(
         "--intensity",
         type=unit_interval_float,
         metavar="FLOAT",
         default=1.0,
-        help="背景除去強度 0.0-1.0（デフォルト: 1.0）",
+        help="Background removal intensity, 0.0-1.0 (default: 1.0)",
     )
     parser.add_argument(
         "--image-format",
         choices=["jpg", "png"],
         default="jpg",
-        help="スライド画像の形式 (デフォルト: jpg)",
+        help="Slide image format (default: jpg)",
     )
     parser.add_argument(
         "--jpeg-quality",
         type=jpeg_quality,
         metavar="N",
         default=95,
-        help="JPEG 品質 (1〜100、デフォルト: 95)",
+        help="JPEG quality (1-100; default: 95)",
     )
     parser.add_argument(
         "--background",
         action="store_true",
-        help="推定した背景マップを {stem}_background.png に保存",
+        help="Save the estimated background map to {stem}_background.png",
     )
     parser.add_argument(
         "--quick-sample",
         action="store_true",
-        help="元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存",
+        help="Save a comparison sheet of the original, background map, and result to {stem}_sample.png",
     )
     parser.add_argument(
         "--verbose", "-v",
         action="store_true",
-        help="デバッグ情報を出力する",
+        help="Print debug information",
     )
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="--verbose を含み、debug/ に判定候補画像を保存する",
+        help="Enable --verbose and save candidate images to debug/",
     )
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="既存の出力ファイルを上書きする",
+        help="Overwrite an existing output file",
     )
     parser.add_argument(
         "--version",
@@ -155,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _fmt_ts(ts: float) -> str:
-    """秒を HH:MM:SS.ss にフォーマットする。"""
+    """Format seconds as HH:MM:SS.ss."""
     hours = int(ts // 3600)
     mins = int((ts % 3600) // 60)
     secs = ts % 60
@@ -166,55 +166,55 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # ロギング設定
+    # Configure logging
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.WARNING,
         format="%(levelname)s: %(message)s",
     )
 
-    # 入力ファイル確認
+    # Validate the input file
     if not args.input.exists():
-        print(f"エラー: 入力ファイルが見つかりません: {args.input}", file=sys.stderr)
+        print(f"Error: Input file not found: {args.input}", file=sys.stderr)
         return 1
 
-    # FFmpeg 確認
+    # Check FFmpeg
     if not check_ffmpeg():
         print(
-            "エラー: ffmpeg / ffprobe が見つかりません。\n"
-            "Homebrew を使っている場合: brew install ffmpeg",
+            "Error: ffmpeg / ffprobe not found.\n"
+            "If you use Homebrew: brew install ffmpeg",
             file=sys.stderr,
         )
         return 1
 
-    # 出力パス決定
+    # Determine the output path
     output_path = args.output or args.input.with_suffix(".pdf")
 
-    # 出力先が既存の場合
+    # Handle an existing output file
     if output_path.exists():
         if args.overwrite:
-            print(f"既存のファイルを上書きします: {output_path}")
+            print(f"Overwriting existing file: {output_path}")
         else:
-            print(f"エラー: 出力先が既に存在します: {output_path}", file=sys.stderr)
-            print("  --overwrite を指定するか、既存ファイルを削除してください。", file=sys.stderr)
+            print(f"Error: Output file already exists: {output_path}", file=sys.stderr)
+            print("  Specify --overwrite or remove the existing file.", file=sys.stderr)
             return 1
 
     crop = args.crop
 
-    # ===== メイン処理 =====
+    # ===== Main processing =====
     print(f"Analyzing video: {args.input.name}")
 
-    # 動画メタ情報取得
+    # Read video metadata
     try:
         info = probe_video(args.input)
     except Exception as e:
-        print(f"エラー: 動画の情報取得に失敗しました: {e}", file=sys.stderr)
+        print(f"Error: Failed to read video information: {e}", file=sys.stderr)
         return 1
 
     if crop is not None:
         x, y, width, height = crop
         if x + width > info.width or y + height > info.height:
             print(
-                "エラー: --crop の範囲が動画フレームを超えています"
+                "Error: The --crop region exceeds the video frame"
                 f" ({info.width}x{info.height}): {x},{y},{width},{height}",
                 file=sys.stderr,
             )
@@ -228,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Background color detection: on")
     print()
 
-    # フレーム抽出
+    # Extract frames
     print("Extracting frames...")
     frames_gen, detection_stats = extract_frames(
         args.input,
@@ -237,10 +237,10 @@ def main(argv: list[str] | None = None) -> int:
         background_color_detection=(args.background_color_detection == "on"),
         verbose=args.verbose,
     )
-    # generator を detect_slides に直接渡す（統計は detect_slides 内で更新）
+    # Pass the generator directly to detect_slides (statistics are updated there)
     frames_iter = frames_gen
 
-    # スライド検出（generator を消費して統計も更新される）
+    # Detect slides (consumes the generator and updates statistics)
     debug_dir = Path("debug") if args.debug else None
     print("Detecting slides...")
 
@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         debug_dir=debug_dir,
     )
 
-    # PDF 生成（generator を直接渡す、統計情報も同時に取得）
+    # Generate the PDF (pass the generator directly and collect statistics)
     print(f"\nGenerating PDF: {output_path}")
     total_candidates, duplicates_rejected = generate_pdf(
         slides, output_path,
@@ -261,14 +261,14 @@ def main(argv: list[str] | None = None) -> int:
         jpeg_quality=args.jpeg_quality,
     )
 
-    # 進捗表示
+    # Display progress
     print()
     print(f"Extracted {detection_stats['total']} candidate frames")
     print(f"Candidates detected: {total_candidates}")
     print(f"Slides accepted: {total_candidates - duplicates_rejected}")
     print(f"Duplicates rejected: {duplicates_rejected}")
 
-    # フレーム generator は generate_pdf() 内で消費済みのため、ここで統計が確定する。
+    # The frame generator was consumed by generate_pdf(), so statistics are final here.
     if args.background_color_detection == "on" and detection_stats["total"] > 0:
         ratios = detection_stats["ratios"]
         detected_ratios = [r for r in ratios if r >= 0.20]
@@ -298,10 +298,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"    Std dev: {statistics.stdev(rejected_ratios):.4f}")
 
     if total_candidates - duplicates_rejected == 0:
-        print("エラー: スライドが検出されませんでした。", file=sys.stderr)
+        print("Error: No slides were detected.", file=sys.stderr)
         return 1
 
-    # 背景除去
+    # Remove the background
     if args.clean == "on":
         # Avoid double _cleaned suffix
         stem = output_path.stem
@@ -323,7 +323,7 @@ def main(argv: list[str] | None = None) -> int:
                 save_sample=args.quick_sample,
             )
         except Exception as e:
-            print(f"エラー：背景除去に失敗しました：{e}", file=sys.stderr)
+            print(f"Error: Background removal failed: {e}", file=sys.stderr)
             return 1
 
         # Rename: backup original -> {stem}_old.pdf, then move cleaned -> {stem}.pdf

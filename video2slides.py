@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""video2slides — 動画からスライドPDFを自動生成するツール
+"""video2slides — a tool that automatically generates slide PDFs from videos.
 
-使用方法:
+Usage:
     python video2slides.py input.mp4
     python video2slides.py input.mp4 --output slides.pdf
 
-注意: root に video2slides.py があるため、video2slides パッケージが
-シャドウされる。importlib.util で src/ 上のモジュールを直接ロードする。
+Note: The root video2slides.py shadows the video2slides package.
+Load the modules directly from src/ with importlib.util.
 """
 
 import importlib.util
 import sys
 from pathlib import Path
 
-# root の video2slides.py が video2slides パッケージをシャドウするのを回避
+# Avoid having the root video2slides.py shadow the video2slides package
 _src_dir = Path(__file__).parent / "src"
 
-# video2slides パッケージを sys.modules に登録
+# Register the video2slides package in sys.modules
 _pkg_init = _src_dir / "video2slides" / "__init__.py"
 _pkg_spec = importlib.util.spec_from_file_location(
     "video2slides", str(_pkg_init),
@@ -26,7 +26,7 @@ _pkg.__path__ = [str(_src_dir / "video2slides")]
 sys.modules["video2slides"] = _pkg
 _pkg_spec.loader.exec_module(_pkg)
 
-# cli モジュールをロード
+# Load the cli module
 _cli_spec = importlib.util.spec_from_file_location(
     "video2slides.cli",
     str(_src_dir / "video2slides" / "cli.py"),

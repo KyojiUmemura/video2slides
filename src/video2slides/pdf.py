@@ -1,10 +1,10 @@
-"""抽出したスライド画像から PDF を生成する。
+"""Generate a PDF from extracted slide images.
 
-メモリ効率: generator ベース。画像を一度に全部メモリに保持せず、
-1ページずつディスクに書き出して PDF に埋め込む。
+Memory efficiency: generator-based. Write images to disk one page at a time
+and embed them in the PDF without holding every image in memory.
 
-sentinel パターン: slides イテレータの末尾に DetectionStats が yield される。
-これは detect_slides() から渡される統計情報であり、PDF 生成後にアクセス可能。
+Sentinel pattern: DetectionStats is yielded at the end of the slides iterator.
+These statistics come from detect_slides() and are available after PDF generation.
 """
 
 from __future__ import annotations
@@ -26,22 +26,21 @@ def generate_pdf(
     image_format: str = "png",
     jpeg_quality: int = 95,
 ) -> tuple[int, int]:
-    """スライド画像を時系列順に並べて PDF に出力する。
+    """Arrange slide images chronologically and write them to a PDF.
 
-    1画像＝1ページ。ページサイズは画像のアスペクト比に合わせる。
-    余白は追加しない。
+    Use one image per page, size each page to the image aspect ratio, and add no margins.
 
-    引数 slides は generator であり、各画像は1枚ずつ一時ファイルに保存される。
-    一時ファイルは tempfile 内で管理され、完了後に自動削除される。
+    slides is a generator; each image is saved to a temporary file. Temporary
+    files are managed by tempfile and removed automatically afterward.
 
-    slides の末尾には DetectionStats が yield される（detect_slides() 由来）。
-    これは PDF 生成後に統計情報を取得するために使用される。
+    DetectionStats from detect_slides() is yielded at the end of slides and is
+    used to retrieve statistics after PDF generation.
 
     Args:
-        slides: SlideCandidate のイテレータ（末尾に DetectionStats が付く）
-        output_path: 出力PDFパス
+        slides: SlideCandidate iterator ending with DetectionStats.
+        output_path: Output PDF path.
         image_format: "jpg" or "png"
-        jpeg_quality: JPEG 品質 (1-100)
+        jpeg_quality: JPEG quality (1-100).
 
     Returns:
         (total_candidates, duplicates_rejected)
@@ -63,18 +62,18 @@ def generate_pdf(
         with tqdm(desc="Generating PDF", unit="slide", dynamic_ncols=True) as pbar:
             for item in slides:
                 if isinstance(item, DetectionStats):
-                    # 統計情報を抽出
+                    # Extract statistics
                     total_candidates = item.total_candidates
                     duplicates_rejected = item.duplicates_rejected
                     continue
 
-                # SlideCandidate を処理
+                # Process the SlideCandidate
                 p = tmp / f"slide_{len(paths):04d}.{ext}"
                 if item.file_path is not None:
-                    # ファイルパスから直接コピー
+                    # Copy directly from the file path
                     shutil.copy2(str(item.file_path), str(p))
                 elif item.image is not None:
-                    # PIL Image を保存
+                    # Save the PIL Image
                     if image_format == "jpg":
                         item.image.save(str(p), "JPEG", quality=jpeg_quality, optimize=True)
                     else:
@@ -88,7 +87,7 @@ def generate_pdf(
         if not paths:
             return total_candidates, duplicates_rejected
 
-        # img2pdf で PDF 生成（全パスを一度に渡すのはディスク上のファイルのみ）
+        # Generate the PDF with img2pdf (all paths refer only to files on disk)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "wb") as f:
             f.write(img2pdf.convert([str(p) for p in paths]))

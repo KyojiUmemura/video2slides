@@ -11,37 +11,37 @@ def finite_float(value: str) -> float:
     try:
         parsed = float(value)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("有限の数値を指定してください") from exc
+        raise argparse.ArgumentTypeError("Please specify a finite number") from exc
     if not math.isfinite(parsed):
-        raise argparse.ArgumentTypeError("有限の数値を指定してください")
+        raise argparse.ArgumentTypeError("Please specify a finite number")
     return parsed
 
 
 def positive_float(value: str) -> float:
     parsed = finite_float(value)
     if parsed <= 0:
-        raise argparse.ArgumentTypeError("0 より大きい値を指定してください")
+        raise argparse.ArgumentTypeError("Please specify a value greater than 0")
     return parsed
 
 
 def nonnegative_float(value: str) -> float:
     parsed = finite_float(value)
     if parsed < 0:
-        raise argparse.ArgumentTypeError("0 以上の値を指定してください")
+        raise argparse.ArgumentTypeError("Please specify a value greater than or equal to 0")
     return parsed
 
 
 def unit_interval_float(value: str) -> float:
     parsed = finite_float(value)
     if not 0.0 <= parsed <= 1.0:
-        raise argparse.ArgumentTypeError("0.0 から 1.0 の値を指定してください")
+        raise argparse.ArgumentTypeError("Please specify a value from 0.0 to 1.0")
     return parsed
 
 
 def percentile_float(value: str) -> float:
     parsed = finite_float(value)
     if not 0.0 <= parsed <= 100.0:
-        raise argparse.ArgumentTypeError("0.0 から 100.0 の値を指定してください")
+        raise argparse.ArgumentTypeError("Please specify a value from 0.0 to 100.0")
     return parsed
 
 
@@ -49,16 +49,16 @@ def positive_int(value: str) -> int:
     try:
         parsed = int(value)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("正の整数を指定してください") from exc
+        raise argparse.ArgumentTypeError("Please specify a positive integer") from exc
     if parsed < 1:
-        raise argparse.ArgumentTypeError("正の整数を指定してください")
+        raise argparse.ArgumentTypeError("Please specify a positive integer")
     return parsed
 
 
 def jpeg_quality(value: str) -> int:
     parsed = positive_int(value)
     if parsed > 100:
-        raise argparse.ArgumentTypeError("1 から 100 の整数を指定してください")
+        raise argparse.ArgumentTypeError("Please specify an integer from 1 to 100")
     return parsed
 
 
@@ -69,9 +69,9 @@ def crop_rect(value: str) -> tuple[int, int, int, int]:
             raise ValueError
         x, y, width, height = (int(part.strip()) for part in raw_parts)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("形式は x,y,width,height です") from exc
+        raise argparse.ArgumentTypeError("The format is x,y,width,height") from exc
     if x < 0 or y < 0:
-        raise argparse.ArgumentTypeError("x と y は 0 以上で指定してください")
+        raise argparse.ArgumentTypeError("x and y must be greater than or equal to 0")
     if width <= 0 or height <= 0:
-        raise argparse.ArgumentTypeError("width と height は 0 より大きくしてください")
+        raise argparse.ArgumentTypeError("width and height must be greater than 0")
     return x, y, width, height

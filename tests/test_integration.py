@@ -1,7 +1,7 @@
-"""動画からスライドPDFを生成する統合テスト。
+"""Integration tests for generating a slide PDF from a video.
 
-FFmpeg でテスト用動画を生成し、video2slides で処理して
-期待される数のスライドが検出されるか確認する。
+Generate a test video with FFmpeg, process it with video2slides, and verify
+that the expected number of slides is detected.
 """
 
 import subprocess
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-# src/ を import path に追加
+# Add src/ to the import path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from video2slides.cli import main
@@ -18,12 +18,12 @@ from video2slides.cli import main
 
 @pytest.fixture(scope="module")
 def test_video(tmp_path_factory):
-    """3スライドのテスト動画（各5秒）を生成する。"""
+    """Generate a three-slide test video with five seconds per slide."""
     video_path = tmp_path_factory.mktemp("test_data") / "test_slides.mp4"
 
-    # スライドA: 白背景 + 上部青バー
-    # スライドB: 白背景 + 左側赤バー
-    # スライドC: 青背景（全面単色）
+    # Slide A: white background + blue bar at the top
+    # Slide B: white background + red bar on the left
+    # Slide C: solid blue background
     slide_files = []
     for i, (vf, color) in enumerate([
         ("drawbox=x=0:y=0:w=640:h=80:color=blue:t=fill", "white"),
@@ -44,7 +44,7 @@ def test_video(tmp_path_factory):
     concat_list = tmp_path_factory.mktemp("concat") / "list.txt"
     concat_list.write_text("\n".join(f"file '{p}'" for p in slide_files) + "\n")
 
-    # 連結
+    # Concatenate
     cmd = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
@@ -57,10 +57,10 @@ def test_video(tmp_path_factory):
 
 
 def test_three_slides_detected(test_video):
-    """3スライドの動画から3ページのPDFが生成される。"""
+    """A three-slide video produces a three-page PDF."""
     output_pdf = test_video.parent / f"{test_video.stem}_slides.pdf"
 
-    # 既存PDFを削除
+    # Remove an existing PDF
     if output_pdf.exists():
         output_pdf.unlink()
 
@@ -75,7 +75,7 @@ def test_three_slides_detected(test_video):
     assert ret == 0, "CLI execution failed"
     assert output_pdf.exists(), "PDF was not generated"
 
-    # PDF のページ数を確認
+    # Verify the PDF page count
     import fitz
     doc = fitz.open(str(output_pdf))
     page_count = len(doc)
@@ -84,10 +84,10 @@ def test_three_slides_detected(test_video):
 
 
 def test_output_not_overwritten(test_video):
-    """既存の出力ファイルを上書きしない。"""
+    """Do not overwrite an existing output file."""
     output_pdf = test_video.parent / f"{test_video.stem}_slides.pdf"
 
-    # 既存PDFを作成
+    # Create an existing PDF
     output_pdf.write_bytes(b"%PDF-1.4 fake content")
 
     ret = main([
@@ -98,15 +98,15 @@ def test_output_not_overwritten(test_video):
     ])
 
     assert ret == 1, "Expected error when output exists"
-    # ファイルは変更されていない
+    # The file remains unchanged
     assert output_pdf.read_bytes() == b"%PDF-1.4 fake content"
 
 
 def test_overwrite_flag(test_video):
-    """--overwrite で既存ファイルを上書きできる。"""
+    """--overwrite allows an existing file to be overwritten."""
     output_pdf = test_video.parent / f"{test_video.stem}_slides.pdf"
 
-    # 既存PDFを作成
+    # Create an existing PDF
     output_pdf.write_bytes(b"%PDF-1.4 fake content")
 
     ret = main([
@@ -118,18 +118,18 @@ def test_overwrite_flag(test_video):
     ])
 
     assert ret == 0, "CLI execution failed with --overwrite"
-    # ファイルが上書きされている（中身が異なる）
+    # The file was overwritten (its contents differ)
     assert output_pdf.read_bytes() != b"%PDF-1.4 fake content"
 
 
 def test_generate_pdf_with_file_paths():
-    """generate_pdf() が SlideCandidate からの入力に対応している。"""
+    """generate_pdf() accepts SlideCandidate input."""
     from PIL import Image
 
     from video2slides.detector import DetectionStats, SlideCandidate
     from video2slides.pdf import generate_pdf
 
-    # ディスク上のテスト画像を作成
+    # Create test images on disk
     img_a = Image.new("RGB", (100, 100), "red")
     img_b = Image.new("RGB", (100, 100), "blue")
     path_a = Path("/tmp/test_pdf_a.png")
@@ -139,7 +139,7 @@ def test_generate_pdf_with_file_paths():
     img_a.close()
     img_b.close()
 
-    # SlideCandidate オブジェクトを作成
+    # Create SlideCandidate objects
     slides: list[SlideCandidate | DetectionStats] = [
         SlideCandidate(timestamp=0.0, file_path=path_a),
         SlideCandidate(timestamp=1.0, file_path=path_b),
@@ -153,20 +153,20 @@ def test_generate_pdf_with_file_paths():
     assert total_candidates == 2
     assert duplicates_rejected == 0
 
-    # PDF のページ数を確認
+    # Verify the PDF page count
     import fitz
     doc = fitz.open(str(output))
     assert len(doc) == 2, f"Expected 2 pages, got {len(doc)}"
     doc.close()
 
-    # クリーンアップ
+    # Clean up
     path_a.unlink()
     path_b.unlink()
     output.unlink()
 
 
 def test_slide_candidate_with_file_path():
-    """SlideCandidate が file_path をサポートしている。"""
+    """SlideCandidate supports file_path."""
     from video2slides.detector import SlideCandidate
 
     c = SlideCandidate(
@@ -179,7 +179,7 @@ def test_slide_candidate_with_file_path():
     assert c.file_path == Path("/tmp/test.png")
     assert c.image is None
 
-    # image のみのケース
+    # Image-only case
     from PIL import Image
     img = Image.new("RGB", (10, 10), "white")
     c2 = SlideCandidate(timestamp=2.0, image=img, file_path=None, status="SAVE")

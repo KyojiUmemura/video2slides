@@ -1,10 +1,9 @@
-"""スライド切替検出と重複除去。
+"""Slide-change detection and duplicate removal.
 
-候補フレームから、スライドが切り替わった箇所の
-「安定した代表フレーム」を抽出する。
+Extract a stable representative frame where a slide changes.
 
-メモリ効率: generator ベース。検出済みのスライド画像は即座に PDF 生成に
-流し出され、検出器内部には直近のフレームのみが保持される。
+Memory efficiency: generator-based. Detected slide images flow directly into
+PDF generation, and the detector retains only the most recent frames.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SlideCandidate:
-    """スライド候補"""
+    """Slide candidate."""
     timestamp: float
     image: Image.Image | None = None
     file_path: Path | None = None
@@ -32,7 +31,7 @@ class SlideCandidate:
 
 @dataclass
 class DetectionResult:
-    """検出結果（統計情報）"""
+    """Detection results (statistics)."""
     total_candidates: int = 0
     duplicates_rejected: int = 0
 
@@ -46,32 +45,32 @@ def detect_slides(
     verbose: bool = False,
     debug_dir: Path | None = None,
 ) -> Iterator[SlideCandidate | DetectionStats]:
-    """スライド切替を検出し、安定した代表フレームをストリーミング出力する。
+    """Detect slide changes and stream stable representative frames.
 
-    処理フロー:
-      1. 連続フレームを比較し、十分に異なる場合は「CHANGE」と判定
-      2. 切替検出後、settle_time 秒経過するまで待機
-      3. 安定した時点で代表フレームとして yield
-      4. 前のスライドと同一の場合、dedup_mode に応じて除外
+    Processing flow:
+      1. Compare consecutive frames and mark sufficiently different ones as CHANGE.
+      2. Wait settle_time seconds after detecting a change.
+      3. Yield a representative frame once stable.
+      4. If it matches the previous slide, exclude it according to dedup_mode.
 
     Args:
-        frames: 時系列順の (timestamp, PIL.Image) イテラブル
-        similarity_threshold: pHash distance 閾値 (0.0〜1.0、デフォルト: 0.0005)
-        pixel_threshold: ピクセル差分閾値 (0.0〜1.0、デフォルト: 0.1)
-        settle_time: スライド切替検出後の安定待ち時間（秒、デフォルト: 0.7）
-        dedup_mode: "keep"=候補を残す, "remove"=直前の保存スライドと
-                    同一の候補を除去。過去の全スライドとは照合しない
-        verbose: デバッグ情報を出力
-        debug_dir: debug/ 画像を保存するディレクトリ（None で保存しない）
+        frames: Iterable of (timestamp, PIL.Image) in chronological order.
+        similarity_threshold: pHash distance threshold (0.0-1.0; default: 0.0005).
+        pixel_threshold: Pixel difference threshold (0.0-1.0; default: 0.1).
+        settle_time: Seconds to wait after a slide change (default: 0.7).
+        dedup_mode: "keep" retains candidates; "remove" drops a candidate identical
+                    to the last saved slide. It does not compare all prior slides.
+        verbose: Print debug information.
+        debug_dir: Directory for debug images (None disables saving).
 
     Yields:
-        SlideCandidate: 検出されたスライド候補（時系列順）
+        SlideCandidate: Detected slide candidates in chronological order.
     """
-    # 状態管理
+    # State management
     prev_image: Image.Image | None = None
-    settle_start: float = 0.0  # 切替検出時刻
-    settling: bool = False      # 安定待ち中
-    last_saved_image: Image.Image | None = None  # 最後に保存したスライド
+    settle_start: float = 0.0  # Change detection time
+    settling: bool = False      # Waiting for stability
+    last_saved_image: Image.Image | None = None  # Last saved slide
     consecutive_same: int = 0
     total_candidates = 0
     duplicates_rejected = 0
@@ -90,7 +89,7 @@ def detect_slides(
             consecutive_same = 0
             continue
 
-        # 類似度判定（pHash + ピクセル差分）
+        # Similarity check (pHash + pixel difference)
         is_change, max_diff = is_slide_change(
             prev_image, img,
             pixel_threshold=pixel_threshold,
@@ -105,17 +104,17 @@ def detect_slides(
                 settling = True
                 settle_start = timestamp
         else:
-            # 類似している場合
+            # When similar
             if settling:
-                # 安定待ち中
+                # Waiting for stability
                 status = "TRANSITION"
-                # 安定したか確認
+                # Check whether the frame is stable
                 if timestamp - settle_start >= settle_time:
-                    # 現在のフレームが last_saved と同じか確認
+                    # Check whether the current frame matches last_saved
                     if last_saved_image is not None and are_similar(
                         last_saved_image, img, similarity_threshold
                     ):
-                        # 前と同じスライドに戻った
+                        # Returned to the previous slide
                         if dedup_mode == "remove":
                             status = "SAME"
                             duplicates_rejected += 1
@@ -123,7 +122,7 @@ def detect_slides(
                                 print(f"{_fmt_ts(timestamp)} difference={max_diff:.3f} SAME (dedup)")
                             prev_image = img
                             continue
-                    # 安定 → 保存
+                    # Stable -> save
                     settling = False
                     status = "STABLE"
             else:
@@ -134,7 +133,7 @@ def detect_slides(
             print(f"{_fmt_ts(timestamp)} difference={max_diff:.3f} {status}")
 
         if status == "STABLE":
-            # 重複チェック
+            # Check for duplicates
             if last_saved_image is not None and are_similar(
                 last_saved_image, img, similarity_threshold
             ):
@@ -145,7 +144,7 @@ def detect_slides(
                     prev_image = img
                     continue
 
-            # 保存
+            # Save
             yield SlideCandidate(
                 timestamp=timestamp, image=img, status="SAVE"
             )
@@ -155,21 +154,21 @@ def detect_slides(
 
         prev_image = img
 
-    # 統計情報を返すための特殊オブジェクト（イテレータ終了時にアクセス可能）
-    # NOTE: isinstance による判別は fragile。将来 SlideCandidate サブクラスが
-    # 追加された場合に衝突する可能性があるので、必要なら専用の終了マークに置き換え。
+    # Special object for returning statistics (available when iteration ends)
+    # NOTE: Identification with isinstance is fragile. A future SlideCandidate
+    # subclass could collide, so replace this with a dedicated end marker if needed.
     yield DetectionStats(total_candidates, duplicates_rejected)
 
 
 @dataclass
 class DetectionStats:
-    """検出統計情報（Sentinel として末尾に yield される）"""
+    """Detection statistics (yielded at the end as a sentinel)."""
     total_candidates: int
     duplicates_rejected: int
 
 
 def _fmt_ts(ts: float) -> str:
-    """秒を HH:MM:SS.ss にフォーマットする。"""
+    """Format seconds as HH:MM:SS.ss."""
     hours = int(ts // 3600)
     mins = int((ts % 3600) // 60)
     secs = ts % 60
@@ -177,7 +176,7 @@ def _fmt_ts(ts: float) -> str:
 
 
 def _save_debug(debug_dir: Path, timestamp: float, img: Image.Image, label: str) -> None:
-    """debug/ に判定候補画像を保存する。"""
+    """Save a candidate image to debug/."""
     debug_dir.mkdir(parents=True, exist_ok=True)
     fname = f"{_fmt_ts(timestamp).replace(':', '-')}.png"
     img.save(debug_dir / f"{fname}_{label}.png")

@@ -1,3 +1,4 @@
+# ffmpeg command to get compact lecture video.
 ffmpeg -i input.mp4 \
   -vf "fps=5,scale=-2:1080" \
   -c:v libx265 \
