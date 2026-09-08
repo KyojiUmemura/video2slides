@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 
@@ -45,7 +45,7 @@ def detect_slides(
     dedup_mode: str = "keep",  # "keep" or "remove"
     verbose: bool = False,
     debug_dir: Path | None = None,
-) -> Iterator[SlideCandidate]:
+) -> Iterator[SlideCandidate | DetectionStats]:
     """スライド切替を検出し、安定した代表フレームをストリーミング出力する。
 
     処理フロー:
@@ -59,7 +59,8 @@ def detect_slides(
         similarity_threshold: pHash distance 閾値 (0.0〜1.0、デフォルト: 0.0005)
         pixel_threshold: ピクセル差分閾値 (0.0〜1.0、デフォルト: 0.1)
         settle_time: スライド切替検出後の安定待ち時間（秒、デフォルト: 0.7）
-        dedup_mode: "keep"=離れて再登場も残す, "remove"=全重複を除去
+        dedup_mode: "keep"=候補を残す, "remove"=直前の保存スライドと
+                    同一の候補を除去。過去の全スライドとは照合しない
         verbose: デバッグ情報を出力
         debug_dir: debug/ 画像を保存するディレクトリ（None で保存しない）
 

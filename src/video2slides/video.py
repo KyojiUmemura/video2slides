@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from collections import Counter
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -138,6 +138,7 @@ def extract_frames(
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # 検出統計
+    sampled_count = 0
     detected_count = 0
     rejected_count = 0
     detection_ratios: list[float] = []
@@ -146,7 +147,7 @@ def extract_frames(
     pbar = tqdm(total=total_frames, desc=desc, unit="frame", position=0, leave=True)
 
     def frame_generator():
-        nonlocal frame_idx, detected_count, rejected_count
+        nonlocal frame_idx, sampled_count, detected_count, rejected_count
 
         while True:
             ret, frame = cap.read()
@@ -155,6 +156,7 @@ def extract_frames(
 
             if frame_idx % frame_interval == 0:
                 timestamp = frame_idx / fps
+                sampled_count += 1
                 # BGR -> RGB 変換
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(rgb)
@@ -199,7 +201,7 @@ def extract_frames(
             yield from frame_generator()
         finally:
             # イテレート終了時に統計を更新
-            stats["total"] = len(detection_ratios)
+            stats["total"] = sampled_count
             stats["detected"] = detected_count
             stats["rejected"] = rejected_count
             stats["ratios"] = detection_ratios.copy()

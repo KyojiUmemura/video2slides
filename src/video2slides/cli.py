@@ -4,17 +4,23 @@ from __future__ import annotations
 
 import argparse
 import logging
-import shutil
 import statistics
 import sys
 from pathlib import Path
 
-from . import __version__
+from .arguments import (
+    crop_rect,
+    jpeg_quality,
+    nonnegative_float,
+    percentile_float,
+    positive_float,
+    positive_int,
+    unit_interval_float,
+)
 from .clean_pdf import clean_pdf
 from .detector import detect_slides
 from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video
-
 
 _VERSION = "2026-09-08"
 
@@ -37,27 +43,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--sample-interval",
-        type=float,
+        type=positive_float,
+        metavar="FLOAT",
         default=2.0,
-        help="フレーム抽出間隔（秒、デフォルト: 2）",
+        help="フレーム抽出間隔（秒、0 より大、デフォルト: 2）",
     )
     parser.add_argument(
         "--settle-time",
-        type=float,
+        type=nonnegative_float,
+        metavar="FLOAT",
         default=0.7,
-        help="スライド切替後の安定待ち時間（秒、デフォルト: 0.7）",
+        help="スライド切替後の安定待ち時間（秒、0 以上、デフォルト: 0.7）",
     )
     parser.add_argument(
         "--similarity-threshold",
-        type=float,
+        type=unit_interval_float,
+        metavar="FLOAT",
         default=0.0005,
         help="類似度閾値 pHash distance (0.0〜1.0、デフォルト: 0.0005)",
     )
     parser.add_argument(
         "--crop",
-        type=str,
+        type=crop_rect,
+        metavar="x,y,width,height",
         default=None,
-        help="切り抜き x,y,width,height",
+        help="切り抜き（x,y >= 0, width,height > 0）",
     )
     parser.add_argument(
         "--background-color-detection",
@@ -69,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--dedup-mode",
         choices=["keep", "remove"],
         default="keep",
-        help="重複スライドの扱い: keep=残す, remove=全重複除去 (デフォルト: keep)",
+        help="直前の保存スライドと同一の候補: keep=残す, remove=除去 (デフォルト: keep)",
     )
     parser.add_argument(
         "--clean",
@@ -79,27 +89,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--bg-pages",
-        type=int,
+        type=positive_int,
+        metavar="INT",
         default=60,
-        help="背景推定に使用するページ数（デフォルト: 60）",
+        help="背景推定に使用するページ数（1 以上、デフォルト: 60）",
     )
     parser.add_argument(
         "--percentile",
-        type=float,
+        type=percentile_float,
+        metavar="FLOAT",
         default=90.0,
-        help="背景推定のパーセンタイル（デフォルト: 90.0）",
+        help="背景推定のパーセンタイル（0.0〜100.0、デフォルト: 90.0）",
     )
     parser.add_argument(
         "--intensity",
-        type=float,
+        type=unit_interval_float,
+        metavar="FLOAT",
         default=1.0,
         help="背景除去強度 0.0-1.0（デフォルト: 1.0）",
-    )
-    parser.add_argument(
-        "--dpi",
-        type=int,
-        default=72,
-        help="変換DPI（デフォルト: 72）",
     )
     parser.add_argument(
         "--image-format",
@@ -109,7 +116,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--jpeg-quality",
-        type=int,
+        type=jpeg_quality,
+        metavar="N",
         default=95,
         help="JPEG 品質 (1〜100、デフォルト: 95)",
     )
@@ -190,17 +198,7 @@ def main(argv: list[str] | None = None) -> int:
             print("  --overwrite を指定するか、既存ファイルを削除してください。", file=sys.stderr)
             return 1
 
-    # 切り抜きパラメータ
-    crop = None
-    if args.crop:
-        try:
-            parts = args.crop.split(",")
-            if len(parts) != 4:
-                raise ValueError
-            crop = tuple(int(p.strip()) for p in parts)
-        except ValueError:
-            print("エラー: --crop の形式は x,y,width,height です。", file=sys.stderr)
-            return 1
+    crop = args.crop
 
     # ===== メイン処理 =====
     print(f"Analyzing video: {args.input.name}")
@@ -212,13 +210,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"エラー: 動画の情報取得に失敗しました: {e}", file=sys.stderr)
         return 1
 
-    duration_h = int(info.duration // 3600)
-    duration_m = int((info.duration % 3600) // 60)
-    duration_s = info.duration % 60
+    if crop is not None:
+        x, y, width, height = crop
+        if x + width > info.width or y + height > info.height:
+            print(
+                "エラー: --crop の範囲が動画フレームを超えています"
+                f" ({info.width}x{info.height}): {x},{y},{width},{height}",
+                file=sys.stderr,
+            )
+            return 1
+
     print(f"Duration: {_fmt_ts(info.duration)}")
     print(f"Resolution: {info.width}x{info.height} @ {info.fps:.1f} fps")
-    if args.crop:
-        print(f"Crop: {args.crop}")
+    if crop is not None:
+        print(f"Crop: {','.join(str(value) for value in crop)}")
     if args.background_color_detection == "on":
         print("Background color detection: on")
     print()
@@ -234,36 +239,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     # generator を detect_slides に直接渡す（統計は detect_slides 内で更新）
     frames_iter = frames_gen
-
-    # 検出統計の表示
-    if args.background_color_detection == "on" and detection_stats["total"] > 0:
-        ratios = detection_stats["ratios"]
-        detected_ratios = [r for r in ratios if r >= 0.20]
-        rejected_ratios = [r for r in ratios if r < 0.20]
-
-        print("\nBackground color detection statistics:")
-        print(f"  Total sampled frames: {detection_stats['total']}")
-        print(f"  Detected (slide-dominant, ratio >= 0.20): {detection_stats['detected']}")
-        print(f"  Rejected (non-slide-dominant, ratio < 0.20): {detection_stats['rejected']}")
-
-        if detected_ratios:
-            print(f"\n  DETECT frames:")
-            print(f"    Count: {len(detected_ratios)}")
-            print(f"    Max ratio: {max(detected_ratios):.4f}")
-            print(f"    Min ratio: {min(detected_ratios):.4f}")
-            print(f"    Average ratio: {statistics.mean(detected_ratios):.4f}")
-            if len(detected_ratios) > 1:
-                print(f"    Std dev: {statistics.stdev(detected_ratios):.4f}")
-
-        if rejected_ratios:
-            print(f"\n  NON-DETECT frames:")
-            print(f"    Count: {len(rejected_ratios)}")
-            print(f"    Max ratio: {max(rejected_ratios):.4f}")
-            print(f"    Min ratio: {min(rejected_ratios):.4f}")
-            print(f"    Average ratio: {statistics.mean(rejected_ratios):.4f}")
-            if len(rejected_ratios) > 1:
-                print(f"    Std dev: {statistics.stdev(rejected_ratios):.4f}")
-    print()
 
     # スライド検出（generator を消費して統計も更新される）
     debug_dir = Path("debug") if args.debug else None
@@ -292,6 +267,35 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Candidates detected: {total_candidates}")
     print(f"Slides accepted: {total_candidates - duplicates_rejected}")
     print(f"Duplicates rejected: {duplicates_rejected}")
+
+    # フレーム generator は generate_pdf() 内で消費済みのため、ここで統計が確定する。
+    if args.background_color_detection == "on" and detection_stats["total"] > 0:
+        ratios = detection_stats["ratios"]
+        detected_ratios = [r for r in ratios if r >= 0.20]
+        rejected_ratios = [r for r in ratios if r < 0.20]
+
+        print("\nBackground color detection statistics:")
+        print(f"  Total sampled frames: {detection_stats['total']}")
+        print(f"  Detected (slide-dominant, ratio >= 0.20): {detection_stats['detected']}")
+        print(f"  Rejected (non-slide-dominant, ratio < 0.20): {detection_stats['rejected']}")
+
+        if detected_ratios:
+            print("\n  DETECT frames:")
+            print(f"    Count: {len(detected_ratios)}")
+            print(f"    Max ratio: {max(detected_ratios):.4f}")
+            print(f"    Min ratio: {min(detected_ratios):.4f}")
+            print(f"    Average ratio: {statistics.mean(detected_ratios):.4f}")
+            if len(detected_ratios) > 1:
+                print(f"    Std dev: {statistics.stdev(detected_ratios):.4f}")
+
+        if rejected_ratios:
+            print("\n  NON-DETECT frames:")
+            print(f"    Count: {len(rejected_ratios)}")
+            print(f"    Max ratio: {max(rejected_ratios):.4f}")
+            print(f"    Min ratio: {min(rejected_ratios):.4f}")
+            print(f"    Average ratio: {statistics.mean(rejected_ratios):.4f}")
+            if len(rejected_ratios) > 1:
+                print(f"    Std dev: {statistics.stdev(rejected_ratios):.4f}")
 
     if total_candidates - duplicates_rejected == 0:
         print("エラー: スライドが検出されませんでした。", file=sys.stderr)

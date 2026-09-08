@@ -9,13 +9,10 @@ sentinel パターン: slides イテレータの末尾に DetectionStats が yie
 
 from __future__ import annotations
 
-import io
 import shutil
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterator
-
-from PIL import Image
 
 import img2pdf
 from tqdm import tqdm
@@ -24,7 +21,7 @@ from .detector import DetectionStats, SlideCandidate
 
 
 def generate_pdf(
-    slides: Iterator[SlideCandidate],
+    slides: Iterable[SlideCandidate | DetectionStats],
     output_path: Path,
     image_format: str = "png",
     jpeg_quality: int = 95,
@@ -48,9 +45,12 @@ def generate_pdf(
 
     Returns:
         (total_candidates, duplicates_rejected)
+
+        When no slide images are received, no PDF is written. The caller can
+        use the returned counts to report the condition and choose its exit
+        status.
     """
     output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     total_candidates = 0
     duplicates_rejected = 0
@@ -84,7 +84,12 @@ def generate_pdf(
                 paths.append(p)
                 pbar.update(1)
 
+        # No accepted slides: do not invoke img2pdf or create an empty PDF.
+        if not paths:
+            return total_candidates, duplicates_rejected
+
         # img2pdf で PDF 生成（全パスを一度に渡すのはディスク上のファイルのみ）
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "wb") as f:
             f.write(img2pdf.convert([str(p) for p in paths]))
 

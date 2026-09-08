@@ -12,7 +12,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-
 # ---------------------------------------------------------------------------
 # Per-pixel positional background
 # ---------------------------------------------------------------------------
@@ -98,4 +97,4 @@ def visualize(pages, page_idx, bg, conf, mask, whitened, output_dir: Path):
                                    fill="black", font=font, anchor="mm")
     strip.save(output_dir / "comparison.png")
 
-    print(f"  bg_map.png / confidence.png / comparison.png / background_mask.png / whitened.png")
+    print("  bg_map.png / confidence.png / comparison.png / background_mask.png / whitened.png")

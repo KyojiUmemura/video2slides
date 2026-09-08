@@ -5,3 +5,8 @@ tqdm>=4.65
 img2pdf>=0.5
 PyMuPDF>=1.23.0
 numpy>=1.24.0
+
+[dev]
+mypy>=1.13
+pytest>=8.0
+ruff>=0.8

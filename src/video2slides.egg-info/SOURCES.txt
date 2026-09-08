@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/video2slides/__init__.py
 src/video2slides/analyze_positional.py
+src/video2slides/arguments.py
 src/video2slides/clean_pdf.py
 src/video2slides/cli.py
 src/video2slides/detector.py
@@ -16,5 +17,6 @@ src/video2slides.egg-info/dependency_links.txt
 src/video2slides.egg-info/entry_points.txt
 src/video2slides.egg-info/requires.txt
 src/video2slides.egg-info/top_level.txt
+tests/test_arguments.py
 tests/test_integration.py
 tests/test_similarity.py

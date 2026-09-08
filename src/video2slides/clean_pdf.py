@@ -14,17 +14,17 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-import PIL.Image as PILImage
-import PIL.ImageDraw as PILImageDraw
-import PIL.ImageFont as PILImageFont
-
 import fitz  # PyMuPDF
 import numpy as np
+import PIL.Image as PILImage
+import PIL.ImageDraw as PILImageDraw
 from tqdm import tqdm
 
+from .analyze_positional import positional_background
 from .pdf_io import get_page_count, iter_pdf_pages
-from .analyze_positional import positional_background, visualize
 from .remove import remove_background
+
+_PROCESSING_PPI = 72
 
 
 def clean_pdf(
@@ -34,7 +34,6 @@ def clean_pdf(
     percentile: float = 90.0,
     intensity: float = 1.0,
     model: str = "multiplicative",
-    dpi: int = 72,
     image_format: str = "png",
     jpeg_quality: int = 95,
     save_bg_map: bool = False,
@@ -49,7 +48,6 @@ def clean_pdf(
         percentile: Per-pixel histogram percentile for bg map (default 90).
         intensity: Removal intensity 0-1 (default 1.0 = full removal).
         model: "additive" or "multiplicative" (default multiplicative).
-        dpi: Render DPI for page extraction (default 72).
         image_format: Output image format "png" or "jpg" (default "png").
         jpeg_quality: JPEG quality when image_format="jpg" (1-100, default 95).
         save_bg_map: Save the estimated background map as PNG (default False).
@@ -73,7 +71,7 @@ def clean_pdf(
     bg_pages_list = []
     with tqdm(total=bg_pages, desc="Sampling pages for bg estimation",
               unit="page", dynamic_ncols=True) as pbar:
-        for _page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
+        for _page_idx, page in iter_pdf_pages(input_pdf, dpi=_PROCESSING_PPI):
             bg_pages_list.append(page)
             pbar.update(1)
             if len(bg_pages_list) >= bg_pages:
@@ -105,7 +103,7 @@ def clean_pdf(
     total_pages = get_page_count(input_pdf)
     with tqdm(total=total_pages, desc="Removing background",
               unit="page", dynamic_ncols=True) as pbar:
-        for page_idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
+        for page_idx, page in iter_pdf_pages(input_pdf, dpi=_PROCESSING_PPI):
             # Remove background for this single page
             cleaned = remove_background([page], bg, model=model, intensity=intensity)[0]
 
@@ -136,7 +134,7 @@ def clean_pdf(
         sample_path = input_pdf.parent / f"{input_pdf.stem}_sample.png"
         # Sample up to 3 pages for comparison
         sample_pages = []
-        for idx, page in iter_pdf_pages(input_pdf, dpi=dpi):
+        for idx, page in iter_pdf_pages(input_pdf, dpi=_PROCESSING_PPI):
             sample_pages.append((idx, page))
             if len(sample_pages) >= 3:
                 break
