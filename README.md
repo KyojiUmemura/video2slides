@@ -1,72 +1,72 @@
 # video2slides
 
-講義・プレゼンテーションを録画した動画から、表示されているスライドを自動的に抽出し、PDF に出力するツールです。
+A tool that automatically extracts slides shown in recorded lectures and presentations and exports them as a PDF.
 
-## 目的
+## Purpose
 
-動画の各スライド画面を時系列順に抽出し、1ページに1スライドの PDF を生成します。音声は含めず、PDF ビューアで自由にページを進められるようにします。
+The tool extracts each slide screen from a video in chronological order and generates a PDF with one slide per page. Audio is not included, allowing users to advance through the slides at their own pace in a PDF viewer.
 
-## macOS でのセットアップ
+## Setup on macOS
 
-### 1. FFmpeg のインストール
+### 1. Install FFmpeg
 
-動画処理に FFmpeg が必要です。Homebrew でインストールします。
+FFmpeg is required for video processing. Install it with Homebrew:
 
 ```bash
 brew install ffmpeg
 ```
 
-### 2. Python 環境の構築
+### 2. Set up the Python environment
 
-Python 3.11 以上が必要です。
+Python 3.11 or later is required.
 
 ```bash
-# 仮想環境を作成（推奨）
+# Create a virtual environment (recommended)
 python3 -m venv .venv
 source .venv/bin/activate
 
-# 依存パッケージをインストール
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-## インストール（他環境でも利用可能）
+## Installation (also available on other platforms)
 
-このプロジェクトは `pip` でインストール可能です。
+This project can be installed with `pip`.
 
-### pip install でのインストール
+### Install with pip
 
 ```bash
-# リポジトリから直接インストール
-pip install git+https://github.com/umekichi/SlideVideo.git
+# Install directly from the repository
+pip install git+https://github.com/KyojiUmemura/video2slides.git
 
-# またはローカルからインストール
+# Or install from a local checkout
 cd SlideVideo
 pip install .
 ```
 
-インストール後、`video2slides` コマンドが利用可能になります：
+After installation, the `video2slides` command is available:
 
 ```bash
 video2slides lecture.mp4
 ```
 
-### pip install --editable（開発者向け）
+### Editable installation (for developers)
 
-開発時にソースコードを直接反映したい場合：
+To apply source-code changes immediately during development:
 
 ```bash
 pip install -e .
 ```
 
-### 開発用チェック
+### Development checks
 
-開発用依存関係をインストールします。
+Install the development dependencies:
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-テスト、リント、型チェックは次のコマンドで実行できます。
+Run tests, linting, and type checking with:
 
 ```bash
 pytest
@@ -74,27 +74,27 @@ ruff check src tests video2slides.py
 mypy
 ```
 
-### 依存パッケージ
+### Dependencies
 
-| パッケージ | 用途 |
-|-----------|------|
-| `opencv-python` | 画像処理、フレーム抽出 |
-| `imagehash` | pHash による画像類似度判定 |
-| `Pillow` | 画像処理 |
-| `tqdm` | 進捗表示 |
-| `img2pdf` | PDF 生成 |
-| `PyMuPDF` | PDF 読み込み・書き出し |
-| `numpy` | 数値演算 |
+| Package | Purpose |
+|---|---|
+| `opencv-python` | Image processing and frame extraction |
+| `imagehash` | Image similarity detection using pHash |
+| `Pillow` | Image processing |
+| `tqdm` | Progress display |
+| `img2pdf` | PDF generation |
+| `PyMuPDF` | PDF reading and writing |
+| `numpy` | Numerical computation |
 
-## 基本的な使い方
+## Basic usage
 
 ```bash
 python video2slides.py input.mp4
 ```
 
-`input.pdf` が生成されます。
+This generates `input.pdf`.
 
-実行中は次のように進捗が表示されます。
+Progress is displayed while the command runs:
 
 ```text
 Analyzing video: input.mp4
@@ -115,230 +115,229 @@ Generating PDF: input.pdf
 Done! 57 slides -> input.pdf
 ```
 
-## CLI オプション
+## CLI options
 
-```
+```text
 python video2slides.py INPUT [OPTIONS]
 
  positional arguments:
-   INPUT                 入力動画ファイルパス
+   INPUT                 Input video file path
 
  options:
-   --output, -o OUTPUT              出力PDFファイルパス（デフォルト: INPUT.pdf）
-   --sample-interval FLOAT          フレーム抽出間隔（秒、0 より大、デフォルト: 2）
-   --settle-time FLOAT              スライド切替後の安定待ち時間（秒、0 以上、デフォルト: 0.7）
-   --similarity-threshold FLOAT     類似度閾値 0.0〜1.0（デフォルト: 0.0005）
-   --crop x,y,width,height          画像の切り抜き（x,y >= 0, width,height > 0）
-   --background-color-detection on|off  スライド主体フレームの検出（デフォルト: off）
-   --dedup-mode keep|remove         直前の保存スライドと同一の候補の扱い（デフォルト: keep）
-   --clean on|off                   スライドPDFの背景除去（デフォルト: off）
-   --bg-pages INT                   背景推定に使用するページ数（1 以上、デフォルト: 60）
-   --percentile FLOAT               背景推定のパーセンタイル（0.0〜100.0、デフォルト: 90.0）
-   --intensity FLOAT                背景除去強度 0.0-1.0（デフォルト: 1.0）
-   --image-format jpg|png           画像形式（デフォルト: jpg）
-   --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
-   --background                     推定した背景マップを {stem}_background.png に保存
-   --quick-sample                   元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存
-   --verbose, -v                    デバッグ情報を出力
-   --debug                          verbose + debug/ に判定候補を保存
-   --overwrite                      既存の出力ファイルを上書き
-   --version                        バージョン表示（YYYY-MM-DD 形式、README.md に固定）
+   --output, -o OUTPUT              Output PDF path (default: INPUT.pdf)
+   --sample-interval FLOAT          Frame sampling interval in seconds (greater than 0; default: 2)
+   --settle-time FLOAT              Stabilization wait after a slide change in seconds (0 or greater; default: 0.7)
+   --similarity-threshold FLOAT     Similarity threshold from 0.0 to 1.0 (default: 0.0005)
+   --crop x,y,width,height          Crop the image (x,y >= 0 and width,height > 0)
+   --background-color-detection on|off  Detect slide-dominant frames (default: off)
+   --dedup-mode keep|remove         How to handle a candidate identical to the last saved slide (default: keep)
+   --clean on|off                   Remove the slide PDF background (default: off)
+   --bg-pages INT                   Pages used for background estimation (1 or greater; default: 60)
+   --percentile FLOAT               Background-estimation percentile from 0.0 to 100.0 (default: 90.0)
+   --intensity FLOAT                Background-removal intensity from 0.0 to 1.0 (default: 1.0)
+   --image-format jpg|png           Image format (default: jpg)
+   --jpeg-quality N                 JPEG quality from 1 to 100 (default: 95)
+   --background                     Save the estimated background map as {stem}_background.png
+   --quick-sample                   Save an original/background/cleaned comparison sheet as {stem}_sample.png
+   --verbose, -v                    Print debug information
+   --debug                          Include verbose output and save detection candidates under debug/
+   --overwrite                      Overwrite an existing output file
+   --version                        Print the version in YYYY-MM-DD format, fixed in README.md
 ```
 
-### 数値オプションの有効範囲
+### Valid ranges for numeric options
 
-| オプション | 有効範囲 |
+| Option | Valid range |
 |---|---|
-| `--sample-interval` | 0 より大きい有限値 |
-| `--settle-time` | 0 以上の有限値 |
-| `--similarity-threshold` | 0.0〜1.0（両端を含む） |
-| `--bg-pages` | 1 以上の整数 |
-| `--percentile` | 0.0〜100.0（両端を含む） |
-| `--intensity` | 0.0〜1.0（両端を含む） |
-| `--jpeg-quality` | 1〜100（両端を含む整数） |
-| `--crop` | `x,y >= 0`、`width,height > 0`、かつ動画フレーム内 |
+| `--sample-interval` | A finite value greater than 0 |
+| `--settle-time` | A finite value greater than or equal to 0 |
+| `--similarity-threshold` | 0.0 to 1.0, inclusive |
+| `--bg-pages` | An integer greater than or equal to 1 |
+| `--percentile` | 0.0 to 100.0, inclusive |
+| `--intensity` | 0.0 to 1.0, inclusive |
+| `--jpeg-quality` | An integer from 1 to 100, inclusive |
+| `--crop` | `x,y >= 0`, `width,height > 0`, and within the video frame |
 
-浮動小数点オプションに `NaN` や無限大は指定できません。範囲外の引数は処理開始前にエラーになります。
+Floating-point options do not accept `NaN` or infinity. Out-of-range arguments cause an error before processing begins.
 
-### 使用例
+### Examples
 
 ```bash
-# 基本
+# Basic usage
 python video2slides.py lecture.mp4
 
-# カスタムオプション
+# Custom options
 python video2slides.py lecture.mp4 \
     --output slides.pdf \
     --sample-interval 2 \
     --settle-time 0.7
 
-# PNG 形式で保存
+# Save images as PNG
 python video2slides.py lecture.mp4 \
     --image-format png
 
-# 短い動画（高速サンプリング）
+# Short video (frequent sampling)
 python video2slides.py short.mp4 \
     --sample-interval 0.2 \
     --settle-time 0.3
 
-# スライド主体フレームのみ抽出
+# Extract only slide-dominant frames
 python video2slides.py lecture.mp4 \
     --background-color-detection on
 
-# 背景除去付き
+# Remove the background
 python video2slides.py lecture.mp4 \
     --clean on
 ```
 
-## スライド検出の考え方
+## How slide detection works
 
-処理は以下の段階で行われます。
+Processing proceeds through the following stages:
 
-```
-動画
+```text
+Video
  ↓
-候補フレームの抽出（一定間隔）
+Extract candidate frames at regular intervals
  ↓
-スライド変更の検出（pHash 類似度）
+Detect slide changes using pHash similarity
  ↓
-画面が安定したフレームを選択（settle-time 待ち）
+Select a stable frame after waiting for settle-time
  ↓
-類似・重複スライドの除去
+Remove similar and duplicate slides
  ↓
-スライド画像
+Slide images
  ↓
-PDF 生成
+Generate PDF
  ↓
-背景除去（`--clean on`）
-```
-
-1. **フレーム抽出**: FFmpeg で動画から一定間隔でフレームを取得
-2. **類似度判定**: `imagehash` の pHash で画像間の視覚的類似度を計算
-3. **安定待ち**: スライド切替検出後、一定時間待ってから代表フレームを保存
-4. **重複除去**: 連続する同一フレームは常に1枚にまとめる。`--dedup-mode remove` では、スライド切替後の候補が直前に保存したスライドと同一の場合にも保存しない
-5. **PDF 生成**: 画像を時系列順に並べて余白なしの PDF に出力
-
-### 重複モード（`--dedup-mode`）
-
-- `keep`（デフォルト）: スライド切替後の安定した候補を保存する
-- `remove`: その候補が直前に保存したスライドと同一なら保存しない
-
-この判定は過去の全スライドを検索するものではありません。そのため、`A → B → A` のように時間を置いて再登場した A は別ページとして残ります。
-
-### スライド主体判定（`--background-color-detection on`）
-
-画像内のほぼ同一色の領域が 20% 以上を占めるフレームのみをスライドとして扱います。
-プレゼン内容以外のフレーム（黒画面、タイトルカード等）を除外できます。
-
-## `--clean on` の詳細
-
-`--clean on` を指定すると、生成されたスライド PDF に対して背景除去（透かし・色付き背景の除去）を自動で実行します。
-
-### 処理パイプライン
-
-```
-スライド PDF
- ↓
-全ページを内部画像として読み込み（72 PPI）
- ↓
-全ページ共通の背景バイアスを推定（p90）
- ↓
-乗算モデルで各ページを補正（ホワイトバランス）
- ↓
-背景除去後の PDF を保存
+Remove background (`--clean on`)
 ```
 
-### 背景推定
+1. **Frame extraction**: FFmpeg obtains frames from the video at regular intervals.
+2. **Similarity detection**: `imagehash` pHash measures the visual similarity between images.
+3. **Stabilization wait**: After detecting a slide change, the tool waits for the specified period before saving a representative frame.
+4. **Duplicate removal**: Consecutive identical frames are always consolidated into one. With `--dedup-mode remove`, a post-transition candidate is also omitted when it is identical to the most recently saved slide.
+5. **PDF generation**: Images are arranged chronologically and written to a PDF without margins.
 
-PDF の先頭から最大 60 ページを文書順にサンプリングし、各ピクセル位置の値ヒストグラムから `--percentile` 番目の値（デフォルト p90）を計算します。このサンプルで共通して明るい成分が背景バイアスとして推定されます。
+### Duplicate modes (`--dedup-mode`)
 
-- **`--bg-pages`** — 背景推定に使用する、PDF 先頭からのページ数（デフォルト: `60`）。値を大きくするほど処理時間とメモリ使用量が増えます。
-- **`--percentile`** — 背景推定のパーセンタイル（デフォルト: `90.0`）。
-  - `90`（デフォルト）: 標準的な透かし除去
-  - `95`: より保守的な除去（背景が残る方向）
-  - `85`: より積極的な除去（背景が強く消える）
+- `keep` (default): Save a stable candidate after a slide transition.
+- `remove`: Do not save the candidate if it is identical to the most recently saved slide.
 
-### 背景除去（乗算モデル / ホワイトバランス補正）
+This check does not search every previously saved slide. Therefore, when slide A reappears after some time, as in `A → B → A`, the second A remains as a separate page.
 
-推定した背景バイアスを使って各ページを補正します：
+### Slide-dominant frame detection (`--background-color-detection on`)
 
+Only frames in which an almost uniform color occupies at least 20% of the image are treated as slides. This can exclude frames that are not presentation content, such as black screens and title cards.
+
+## Details of `--clean on`
+
+When `--clean on` is specified, background removal is automatically applied to the generated slide PDF to remove watermarks or colored backgrounds.
+
+### Processing pipeline
+
+```text
+Slide PDF
+ ↓
+Read every page as an internal image at 72 PPI
+ ↓
+Estimate a shared background bias using p90
+ ↓
+Correct each page with a multiplicative white-balance model
+ ↓
+Save the cleaned PDF
 ```
-補正係数 = (255 / 背景)^intensity
-出力 = clip(入力 × 補正係数, 0, 255)
+
+### Background estimation
+
+Up to the first 60 pages of the PDF are sampled in document order. At each pixel position, the value at the percentile selected by `--percentile` (p90 by default) is calculated. Bright components shared across this sample are estimated as the background bias.
+
+- **`--bg-pages`** — Number of pages sampled from the beginning of the PDF for background estimation (default: `60`). Increasing this value increases processing time and memory usage.
+- **`--percentile`** — Percentile used for background estimation (default: `90.0`).
+  - `90` (default): Standard watermark removal
+  - `95`: More conservative removal, leaving more background
+  - `85`: More aggressive removal, erasing more background
+
+### Background removal (multiplicative model / white-balance correction)
+
+Each page is corrected using the estimated background bias:
+
+```text
+correction factor = (255 / background)^intensity
+output = clip(input × correction factor, 0, 255)
 ```
 
-背景が明るい領域は白に近づき、背景が濃い領域は相対的に明るくなります。暗いコンテンツ（文字、線）は乗算モデルにより保持されます。
+Bright background areas approach white, while darker background areas become relatively brighter. The multiplicative model preserves dark content such as text and lines.
 
-- **`--intensity`** — 背景除去の強度（デフォルト: `1.0`）。
-  - `1.0`: 背景を完全に白飛ばし
-  - `0.5`: 背景の半分だけ白飛ばし
-  - `0.0`: 除去しない（デバッグ用）
+- **`--intensity`** — Background-removal intensity (default: `1.0`).
+  - `1.0`: Fully whiten the background
+  - `0.5`: Apply half-strength whitening
+  - `0.0`: Do not remove the background (for debugging)
 
-### 出力ファイル
+### Output files
 
-`--clean on` 指定時、以下のファイルが生成されます：
+With `--clean on`, the following files are generated:
 
-| ファイル | 説明 | 条件 |
-|---------|------|------|
-| `<stem>.pdf` | 背景除去後の PDF（最終結果） | 常時生成 |
-| `<stem>_original.pdf` | 除去前の PDF（バックアップ） | `--clean on` 時、`<stem>.pdf` が既存の場合 |
-| `<stem>_background.png` | 推定した背景マップ | `--background` 指定時 |
-| `<stem>_sample.png` | 元画像・背景マップ・除去後の比較シート | `--quick-sample` 指定時 |
-
-`<stem>` は入力ファイル名から拡張子を除いた部分です。`<stem>.pdf` が既に存在する場合、背景除去前に `<stem>_original.pdf` へバックアップし、除去後の PDF を `<stem>.pdf` として上書きします。
-
-### 処理解像度
-
-背景除去で PDF ページを内部画像に変換する際の解像度は、72 pixels per inch（PPI）で固定です。利用者が指定するオプションはありません。
-
-### 推奨パラメータ
-
-| 用途 | --bg-pages | --percentile | --intensity |
-|------|-----------|-------------|-------------|
-| 標準（背景除去） | `60` | `90` | `1.0` |
-| 強い塗りつぶし | `60` | `90` | `1.0` |
-| 写真混じりドキュメント | `60` | `90` | `1.0` |
-
-### トラブルシューティング
-
-#### 背景が完全に除去されない
-
-- `--intensity` が `1.0` になっているか確認してください。
-- `--percentile` を下げてみてください（例: `--percentile 85`）。
-
-#### 原本の文字まで消えてしまう
-
-- `--intensity` を `0.5` などに下げてみてください。
-- `--percentile` を上げてみてください（例: `--percentile 95`）。
-
-#### 処理が遅い / メモリ不足
-
-- `--bg-pages` を減らしてみてください（例: `--bg-pages 30`）。
-- `--clean off` で使用するか、`--sample-interval` を大きくしてスライド数を減らすことを検討してください。
-
-## 推奨パラメータ
-
-| パラメータ | 推奨値 | 説明 |
+| File | Description | Condition |
 |---|---|---|
-| `--sample-interval` | `2` | 標準的な講義動画（デフォルト） |
-| `--sample-interval` | `1` | 切り替えが速い動画 |
-| `--settle-time` | `0.7` | 標準的なフェード切替 |
-| `--similarity-threshold` | `0.0005` | 標準的な閾値（デフォルト） |
-| `--background-color-detection` | `off` | スライド主体判定（デフォルト） |
-| `--clean` | `off` | 背景除去（デフォルト） |
+| `<stem>.pdf` | Cleaned PDF (final result) | Always generated |
+| `<stem>_original.pdf` | PDF before background removal (backup) | When `<stem>.pdf` exists during `--clean on` processing |
+| `<stem>_background.png` | Estimated background map | When `--background` is specified |
+| `<stem>_sample.png` | Comparison sheet containing the original image, background map, and cleaned result | When `--quick-sample` is specified |
 
-### パラメータの調整目安
+`<stem>` is the input filename without its extension. If `<stem>.pdf` already exists, it is backed up as `<stem>_original.pdf` before the cleaned result replaces `<stem>.pdf`.
 
-- **スライドが見落とされる** → `--sample-interval` を小さく（例: `0.2`）
-- **切替途中の画像が残る** → `--settle-time` を大きく（例: `1.0`）
-- **ノイズで偽検出が多い** → `--similarity-threshold` を大きく（例: `0.01`）
-- **本来違うスライドが同一と判定される** → `--similarity-threshold` を小さく（例: `0.0002`）
+### Processing resolution
 
-## トラブルシューティング
+PDF pages are converted to internal images at a fixed resolution of 72 pixels per inch (PPI) during background removal. There is no user-configurable resolution option.
+
+### Recommended parameters
+
+| Use case | `--bg-pages` | `--percentile` | `--intensity` |
+|---|---:|---:|---:|
+| Standard background removal | `60` | `90` | `1.0` |
+| Strong fill | `60` | `90` | `1.0` |
+| Documents containing photographs | `60` | `90` | `1.0` |
+
+### Troubleshooting
+
+#### The background is not completely removed
+
+- Confirm that `--intensity` is set to `1.0`.
+- Try lowering `--percentile`, for example: `--percentile 85`.
+
+#### Text from the original is also removed
+
+- Try lowering `--intensity`, for example to `0.5`.
+- Try raising `--percentile`, for example: `--percentile 95`.
+
+#### Processing is slow or runs out of memory
+
+- Try reducing `--bg-pages`, for example: `--bg-pages 30`.
+- Consider using `--clean off`, or increase `--sample-interval` to reduce the number of slides.
+
+## Recommended parameters
+
+| Parameter | Recommended value | Description |
+|---|---:|---|
+| `--sample-interval` | `2` | Standard lecture videos (default) |
+| `--sample-interval` | `1` | Videos with rapid transitions |
+| `--settle-time` | `0.7` | Standard fade transitions |
+| `--similarity-threshold` | `0.0005` | Standard threshold (default) |
+| `--background-color-detection` | `off` | Slide-dominant detection (default) |
+| `--clean` | `off` | Background removal (default) |
+
+### Parameter adjustment guidelines
+
+- **Slides are missed** → Decrease `--sample-interval`, for example to `0.2`.
+- **Transition frames remain** → Increase `--settle-time`, for example to `1.0`.
+- **Noise produces too many false detections** → Increase `--similarity-threshold`, for example to `0.01`.
+- **Different slides are treated as identical** → Decrease `--similarity-threshold`, for example to `0.0002`.
+
+## Troubleshooting
 
 ### `ffmpeg: command not found`
 
-FFmpeg がインストールされていません。
+FFmpeg is not installed.
 
 ```bash
 brew install ffmpeg
@@ -346,44 +345,44 @@ brew install ffmpeg
 
 ### `No video stream found`
 
-入力ファイルが動画でない、または動画コーデックが未対応です。
+The input is not a video file, or its video codec is unsupported.
 
-### スライドが正しく抽出されない
+### Slides are not extracted correctly
 
-1. `--verbose` を付けて実行し、検出ログを確認
-2. `--sample-interval` を調整
-3. `--similarity-threshold` を調整
-4. `--debug` で `debug/` ディレクトリに判定候補画像が保存されるので確認
+1. Run with `--verbose` and inspect the detection log.
+2. Adjust `--sample-interval`.
+3. Adjust `--similarity-threshold`.
+4. Run with `--debug` and inspect the candidate images saved under `debug/`.
 
-### 背景除去後、背景が完全に除去されない
+### The background is not completely removed after cleaning
 
-- 背景が濃い場合、乗算モデルでは完全除去が難しい場合があります。
-- 背景が明るい透かしの場合は効果的です。
+- The multiplicative model may not completely remove a dark background.
+- It is effective for light watermarks and backgrounds.
 
-### 原本の文字まで消えてしまう
+### Text from the original is also removed
 
-- 背景と文字の境界が不明確な場合に発生します。
-- 背景除去の影響が小さい場合は、`--clean off` で使用してください。
+- This can occur when the boundary between the background and text is unclear.
+- If background removal provides little benefit, use `--clean off`.
 
-### 処理が遅い / メモリ不足
+### Processing is slow or runs out of memory
 
-- `--clean on` は PDF の全ページを画像として展開するため、メモリ使用量が増加します。
-- ページ数が多い場合は、`--sample-interval` を大きくしてスライド数を減らすことを検討してください。
+- `--clean on` expands every PDF page into an image, increasing memory usage.
+- For PDFs with many pages, consider increasing `--sample-interval` to reduce the number of slides.
 
-### 依存パッケージのインストールに失敗
+### Dependency installation fails
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## 開発
+## Development
 
 ```bash
-# テスト実行
+# Run tests
 python -m pytest tests/ -v
 ```
 
-## ライセンス
+## License
 
 MIT
