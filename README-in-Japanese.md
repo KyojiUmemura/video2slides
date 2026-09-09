@@ -131,14 +131,14 @@ python video2slides.py INPUT [OPTIONS]
    --crop x,y,width,height          画像の切り抜き（x,y >= 0, width,height > 0）
    --background-color-detection on|off  スライド主体フレームの検出（デフォルト: off）
    --dedup-mode keep|remove         直前の保存スライドと同一の候補の扱い（デフォルト: keep）
-   --clean on|off                   スライドPDFの背景除去（デフォルト: off）
+   --clean on|off|diag              スライドPDFの背景除去（デフォルト: off；diag 時は診断PNGも保存）
    --bg-pages INT                   背景推定に使用するページ数（1 以上、デフォルト: 60）
    --percentile FLOAT               背景推定のパーセンタイル（0.0〜100.0、デフォルト: 90.0）
    --intensity FLOAT                背景除去強度 0.0-1.0（デフォルト: 1.0）
    --image-format jpg|png           画像形式（デフォルト: jpg）
    --jpeg-quality N                 JPEG品質 1〜100（デフォルト: 95）
-   --background                     推定した背景マップを {stem}_background.png に保存
-   --quick-sample                   元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存
+   --background                     推定した背景マップを {stem}_background.png に保存（--clean diag で指定）
+   --quick-sample                   元画像・背景マップ・除去後の比較シートを {stem}_sample.png に保存（--clean diag で指定）
    --verbose, -v                    デバッグ情報を出力
    --debug                          verbose + debug/ に判定候補を保存
    --overwrite                      既存の出力ファイルを上書き
@@ -188,6 +188,10 @@ python video2slides.py lecture.mp4 \
 # 背景除去付き
 python video2slides.py lecture.mp4 \
     --clean on
+
+# 背景除去 + 診断PNG（背景マップ + 比較シート）の保存
+python video2slides.py lecture.mp4 \
+    --clean diag
 ```
 
 ## スライド検出の考え方
@@ -230,9 +234,9 @@ PDF 生成
 画像内のほぼ同一色の領域が 20% 以上を占めるフレームのみをスライドとして扱います。
 プレゼン内容以外のフレーム（黒画面、タイトルカード等）を除外できます。
 
-## `--clean on` の詳細
+## `--clean` の詳細
 
-`--clean on` を指定すると、生成されたスライド PDF に対して背景除去（透かし・色付き背景の除去）を自動で実行します。
+`--clean on` または `--clean diag` を指定すると、生成されたスライド PDF に対して背景除去（透かし・色付き背景の除去）を自動で実行します。`--clean diag` には診断用の PNG ファイル（背景マップと比較シート）の保存が含まれ、`--clean on` には含まれません。
 
 ### 処理パイプライン
 
@@ -276,16 +280,16 @@ PDF の先頭から最大 60 ページを文書順にサンプリングし、各
 
 ### 出力ファイル
 
-`--clean on` 指定時、以下のファイルが生成されます：
+`--clean on` または `--clean diag` 指定時、以下のファイルが生成されます：
 
 | ファイル | 説明 | 条件 |
 |---------|------|------|
 | `<stem>.pdf` | 背景除去後の PDF（最終結果） | 常時生成 |
-| `<stem>_original.pdf` | 除去前の PDF（バックアップ） | `--clean on` 時、`<stem>.pdf` が既存の場合 |
-| `<stem>_background.png` | 推定した背景マップ | `--background` 指定時 |
-| `<stem>_sample.png` | 元画像・背景マップ・除去後の比較シート | `--quick-sample` 指定時 |
+| `<stem>_original.pdf` | 除去前の PDF（バックアップ） | `--clean diag` 時は保持；`--clean on` 時は削除 |
+| `<stem>_background.png` | 推定した背景マップ | `--clean diag`（または `--background`）指定時 |
+| `<stem>_sample.png` | 元画像・背景マップ・除去後の比較シート | `--clean diag`（または `--quick-sample`）指定時 |
 
-`<stem>` は入力ファイル名から拡張子を除いた部分です。`<stem>.pdf` が既に存在する場合、背景除去前に `<stem>_original.pdf` へバックアップし、除去後の PDF を `<stem>.pdf` として上書きします。
+`<stem>` は入力ファイル名から拡張子を除いた部分です。除去後の PDF が `<stem>.pdf` として保存されます。元の PDF は `--clean diag` 時のみ `<stem>_original.pdf` として保持され、`--clean on` 時は削除されます。
 
 ### 処理解像度
 

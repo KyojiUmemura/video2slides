@@ -22,7 +22,7 @@ from .detector import detect_slides
 from .pdf import generate_pdf
 from .video import check_ffmpeg, extract_frames, probe_video
 
-_VERSION = "26.09.08"
+_VERSION = "26.09.09"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,9 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--clean",
-        choices=["on", "off"],
+        choices=["on", "off", "diag"],
         default="off",
-        help="Remove the slide PDF background (default: off)",
+        help=(
+            "Remove the slide PDF background (default: off). "
+            "'diag' also saves the background map and comparison sheet PNGs"
+        ),
     )
     parser.add_argument(
         "--bg-pages",
@@ -124,12 +127,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--background",
         action="store_true",
-        help="Save the estimated background map to {stem}_background.png",
+        help="Save the estimated background map to {stem}_background.png (implied by --clean diag)",
     )
     parser.add_argument(
         "--quick-sample",
         action="store_true",
-        help="Save a comparison sheet of the original, background map, and result to {stem}_sample.png",
+        help="Save a comparison sheet of the original, background map, and result to {stem}_sample.png (implied by --clean diag)",
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -303,7 +306,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # Remove the background
-    if args.clean == "on":
+    if args.clean in ("on", "diag"):
+        # --clean diag also emits the diagnostic PNGs (background map + sample sheet)
+        save_bg_map = args.clean == "diag" or args.background
+        save_sample = args.clean == "diag" or args.quick_sample
         # Avoid double _cleaned suffix
         stem = output_path.stem
         if stem.endswith("_cleaned"):
@@ -312,6 +318,8 @@ def main(argv: list[str] | None = None) -> int:
             cleaned_name = f"{stem}_cleaned.pdf"
         cleaned_path = output_path.parent / cleaned_name
         print(f"\nCleaning background: {cleaned_path}")
+        if args.clean == "diag":
+            print("Diagnostics: saving background map and comparison sheet")
         try:
             clean_pdf(
                 output_path, cleaned_path,
@@ -320,19 +328,25 @@ def main(argv: list[str] | None = None) -> int:
                 intensity=args.intensity,
                 image_format=args.image_format,
                 jpeg_quality=args.jpeg_quality,
-                save_bg_map=args.background,
-                save_sample=args.quick_sample,
+                save_bg_map=save_bg_map,
+                save_sample=save_sample,
             )
         except Exception as e:
             print(f"Error: Background removal failed: {e}", file=sys.stderr)
             return 1
 
-        # Rename: backup original -> {stem}_old.pdf, then move cleaned -> {stem}.pdf
+        # Move the cleaned PDF into place. The original is moved aside to
+        # {stem}_original.pdf first (cross-platform-safe rename); it is kept
+        # for `--clean diag` and removed for `--clean on`.
+        backup_path = output_path.parent / f"{stem}_original.pdf"
         if output_path.exists():
-            backup_path = output_path.parent / f"{stem}_original.pdf"
             output_path.rename(backup_path)
-            print(f"  Original backed up: {backup_path}")
         cleaned_path.rename(output_path)
+        if args.clean == "diag":
+            print(f"  Original kept: {backup_path}")
+        else:
+            backup_path.unlink(missing_ok=True)
+            print("  Original removed (--clean on)")
         print(f"  Cleaned PDF saved: {output_path}")
 
     print(f"Done! {slides_accepted} slides -> {output_path}")

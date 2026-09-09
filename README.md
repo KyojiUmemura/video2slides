@@ -131,14 +131,14 @@ python video2slides.py INPUT [OPTIONS]
    --crop x,y,width,height          Crop the image (x,y >= 0 and width,height > 0)
    --background-color-detection on|off  Detect slide-dominant frames (default: off)
    --dedup-mode keep|remove         How to handle a candidate identical to the last saved slide (default: keep)
-   --clean on|off                   Remove the slide PDF background (default: off)
+   --clean on|off|diag              Remove the slide PDF background (default: off; `diag` also saves the diagnostic PNGs)
    --bg-pages INT                   Pages used for background estimation (1 or greater; default: 60)
    --percentile FLOAT               Background-estimation percentile from 0.0 to 100.0 (default: 90.0)
    --intensity FLOAT                Background-removal intensity from 0.0 to 1.0 (default: 1.0)
    --image-format jpg|png           Image format (default: jpg)
    --jpeg-quality N                 JPEG quality from 1 to 100 (default: 95)
-   --background                     Save the estimated background map as {stem}_background.png
-   --quick-sample                   Save an original/background/cleaned comparison sheet as {stem}_sample.png
+   --background                     Save the estimated background map as {stem}_background.png (implied by --clean diag)
+   --quick-sample                   Save an original/background/cleaned comparison sheet as {stem}_sample.png (implied by --clean diag)
    --verbose, -v                    Print debug information
    --debug                          Include verbose output and save detection candidates under debug/
    --overwrite                      Overwrite an existing output file
@@ -188,6 +188,10 @@ python video2slides.py lecture.mp4 \
 # Remove the background
 python video2slides.py lecture.mp4 \
     --clean on
+
+# Remove the background and save diagnostic PNGs (background map + comparison sheet)
+python video2slides.py lecture.mp4 \
+    --clean diag
 ```
 
 ## How slide detection works
@@ -229,9 +233,9 @@ This check does not search every previously saved slide. Therefore, when slide A
 
 Only frames in which an almost uniform color occupies at least 20% of the image are treated as slides. This can exclude frames that are not presentation content, such as black screens and title cards.
 
-## Details of `--clean on`
+## Details of `--clean`
 
-When `--clean on` is specified, background removal is automatically applied to the generated slide PDF to remove watermarks or colored backgrounds.
+When `--clean on` or `--clean diag` is specified, background removal is automatically applied to the generated slide PDF to remove watermarks or colored backgrounds. `--clean diag` additionally saves diagnostic PNG files (the background map and a comparison sheet); `--clean on` does not.
 
 ### Processing pipeline
 
@@ -275,16 +279,16 @@ Bright background areas approach white, while darker background areas become rel
 
 ### Output files
 
-With `--clean on`, the following files are generated:
+With `--clean on` or `--clean diag`, the following files are generated:
 
 | File | Description | Condition |
 |---|---|---|
 | `<stem>.pdf` | Cleaned PDF (final result) | Always generated |
-| `<stem>_original.pdf` | PDF before background removal (backup) | When `<stem>.pdf` exists during `--clean on` processing |
-| `<stem>_background.png` | Estimated background map | When `--background` is specified |
-| `<stem>_sample.png` | Comparison sheet containing the original image, background map, and cleaned result | When `--quick-sample` is specified |
+| `<stem>_original.pdf` | PDF before background removal (backup) | Kept with `--clean diag`; removed for `--clean on` |
+| `<stem>_background.png` | Estimated background map | When `--clean diag` (or `--background`) is specified |
+| `<stem>_sample.png` | Comparison sheet containing the original image, background map, and cleaned result | When `--clean diag` (or `--quick-sample`) is specified |
 
-`<stem>` is the input filename without its extension. If `<stem>.pdf` already exists, it is backed up as `<stem>_original.pdf` before the cleaned result replaces `<stem>.pdf`.
+`<stem>` is the input filename without its extension. The cleaned result replaces `<stem>.pdf`; the original is retained as `<stem>_original.pdf` only with `--clean diag` (removed for `--clean on`).
 
 ### Processing resolution
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video2slides"
-version = "0.1.1"
+version = "0.1.2"
 description = "Extract slides from recorded video and generate a PDF"
 requires-python = ">=3.10"
 dependencies = [
