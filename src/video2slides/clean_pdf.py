@@ -14,10 +14,10 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-import fitz  # PyMuPDF
 import numpy as np
 import PIL.Image as PILImage
 import PIL.ImageDraw as PILImageDraw
+import pymupdf
 from tqdm import tqdm
 
 from .analyze_positional import positional_background
@@ -98,7 +98,7 @@ def clean_pdf(
     # Only one page is in memory at a time (plus the bg map).
     # ------------------------------------------------------------------
     print(f"  Removing background ({model}, intensity={intensity}) and writing...")
-    doc = fitz.open()
+    doc = pymupdf.open()
 
     total_pages = get_page_count(input_pdf)
     with tqdm(total=total_pages, desc="Removing background",
@@ -120,7 +120,7 @@ def clean_pdf(
                 pil_img.save(buf, format="PNG")
             buf.seek(0)
             out_page.insert_image(
-                fitz.Rect(0, 0, w, h),
+                pymupdf.Rect(0, 0, w, h),
                 stream=buf.read(),
             )
 

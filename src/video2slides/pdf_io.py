@@ -1,6 +1,6 @@
 """PDF reading and writing utilities.
 
-Uses PyMuPDF (fitz) for PDF-to-image conversion and output PDF generation.
+Uses PyMuPDF for PDF-to-image conversion and output PDF generation.
 """
 
 from __future__ import annotations
@@ -9,9 +9,9 @@ import io
 from pathlib import Path
 from typing import List, Tuple
 
-import fitz  # PyMuPDF
 import img2pdf
 import numpy as np
+import pymupdf
 from PIL import Image
 
 
@@ -34,14 +34,14 @@ def load_pdf_pages(
     if not pdf_path.exists():
         raise FileNotFoundError(f"Input PDF not found: {pdf_path}")
 
-    doc = fitz.open(str(pdf_path))
+    doc = pymupdf.open(str(pdf_path))
     pages: List[np.ndarray] = []
 
     for page_num in range(len(doc)):
         page = doc[page_num]
-        # Render at specified DPI (fitz uses 72 DPI as base)
+        # Render at specified DPI (PyMuPDF uses 72 DPI as the base)
         zoom = dpi / 72.0
-        mat = fitz.Matrix(zoom, zoom)
+        mat = pymupdf.Matrix(zoom, zoom)
         pix = page.get_pixmap(matrix=mat, alpha=False)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         arr = np.array(img)
@@ -58,7 +58,7 @@ def load_pdf_pages(
 def get_page_count(pdf_path: str | Path) -> int:
     """Return the number of pages in a PDF without rendering them."""
     pdf_path = Path(pdf_path)
-    doc = fitz.open(str(pdf_path))
+    doc = pymupdf.open(str(pdf_path))
     count = len(doc)
     doc.close()
     return count
@@ -67,10 +67,10 @@ def get_page_count(pdf_path: str | Path) -> int:
 def get_page_size(pdf_path: str | Path, page_index: int = 0, dpi: int = 300) -> Tuple[int, int]:
     """Return (width, height) in pixels for a given page at the specified DPI."""
     pdf_path = Path(pdf_path)
-    doc = fitz.open(str(pdf_path))
+    doc = pymupdf.open(str(pdf_path))
     page = doc[page_index]
     zoom = dpi / 72.0
-    mat = fitz.Matrix(zoom, zoom)
+    mat = pymupdf.Matrix(zoom, zoom)
     pix = page.get_pixmap(matrix=mat, alpha=False)
     width, height = pix.width, pix.height
     doc.close()
@@ -93,12 +93,12 @@ def iter_pdf_pages(
     if not pdf_path.exists():
         raise FileNotFoundError(f"Input PDF not found: {pdf_path}")
 
-    doc = fitz.open(str(pdf_path))
+    doc = pymupdf.open(str(pdf_path))
     try:
         for page_num in range(len(doc)):
             page = doc[page_num]
             zoom = dpi / 72.0
-            mat = fitz.Matrix(zoom, zoom)
+            mat = pymupdf.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat, alpha=False)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
             arr = np.array(img)
@@ -159,7 +159,7 @@ def _images_to_pdf_raw(
     compression: str = "zip",
 ) -> bytes:
     """Create PDF directly via PyMuPDF with raw image embedding."""
-    doc = fitz.open()
+    doc = pymupdf.open()
 
     for img in images:
         height, width, _ = img.shape
@@ -171,16 +171,16 @@ def _images_to_pdf_raw(
         if compression == "zip":
             pil_img.save(buf, format="PNG")
         else:
-            # 'none' still uses PNG internally (fitz requires it)
+            # 'none' still uses PNG internally (PyMuPDF requires it)
             pil_img.save(buf, format="PNG")
         buf.seek(0)
 
         # Create a page sized in points (1 pt = 1/72 in) and fill it with the image.
-        # NOTE: fitz.Rect and new_page() both take points — do NOT divide by 72
+        # NOTE: pymupdf.Rect and new_page() both take points — do NOT divide by 72
         # here, or the image gets squashed into a tiny corner (see _images_to_pdf_raw).
         page = doc.new_page(width=width, height=height)
         page.insert_image(
-            fitz.Rect(0, 0, width, height),
+            pymupdf.Rect(0, 0, width, height),
             stream=buf.read(),
         )
 

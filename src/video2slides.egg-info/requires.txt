@@ -3,7 +3,7 @@ imagehash>=4.3
 Pillow>=10.0
 tqdm>=4.65
 img2pdf>=0.5
-PyMuPDF>=1.23.0
+PyMuPDF>=1.24.3
 numpy>=1.24.0
 
 [dev]

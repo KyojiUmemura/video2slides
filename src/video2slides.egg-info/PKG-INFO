@@ -8,7 +8,7 @@ Requires-Dist: imagehash>=4.3
 Requires-Dist: Pillow>=10.0
 Requires-Dist: tqdm>=4.65
 Requires-Dist: img2pdf>=0.5
-Requires-Dist: PyMuPDF>=1.23.0
+Requires-Dist: PyMuPDF>=1.24.3
 Requires-Dist: numpy>=1.24.0
 Provides-Extra: dev
 Requires-Dist: mypy>=1.13; extra == "dev"

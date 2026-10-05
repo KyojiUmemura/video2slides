@@ -76,8 +76,9 @@ def test_three_slides_detected(test_video):
     assert output_pdf.exists(), "PDF was not generated"
 
     # Verify the PDF page count
-    import fitz
-    doc = fitz.open(str(output_pdf))
+    import pymupdf
+
+    doc = pymupdf.open(str(output_pdf))
     page_count = len(doc)
     doc.close()
     assert page_count >= 3, f"Expected at least 3 pages, got {page_count}"
@@ -154,8 +155,9 @@ def test_generate_pdf_with_file_paths():
     assert duplicates_rejected == 0
 
     # Verify the PDF page count
-    import fitz
-    doc = fitz.open(str(output))
+    import pymupdf
+
+    doc = pymupdf.open(str(output))
     assert len(doc) == 2, f"Expected 2 pages, got {len(doc)}"
     doc.close()
 
